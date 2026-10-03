@@ -221,6 +221,37 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
             or <span className="font-medium text-accent">browse your files</span> · PDFs never leave your device
           </span>
         </button>
+        <footer className="mt-6 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-muted">
+          <span>
+            © 2026{' '}
+            <a
+              href="https://github.com/markosankovic"
+              target="_blank"
+              rel="noreferrer"
+              className="hover:text-text hover:underline"
+            >
+              Marko Sanković
+            </a>
+          </span>
+          <span aria-hidden>·</span>
+          <a
+            href="https://github.com/markosankovic/opengrasp/blob/main/LICENSE"
+            target="_blank"
+            rel="noreferrer"
+            className="hover:text-text hover:underline"
+          >
+            MIT License
+          </a>
+          <span aria-hidden>·</span>
+          <a
+            href="https://github.com/markosankovic/opengrasp"
+            target="_blank"
+            rel="noreferrer"
+            className="hover:text-text hover:underline"
+          >
+            GitHub
+          </a>
+        </footer>
       </div>
     </div>
   )
