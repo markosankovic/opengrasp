@@ -445,12 +445,10 @@ All colors are CSS custom properties defined once in Tailwind v4's `@theme`. Com
 
 ## 6. Performance
 
-"Very fast" is a requirement with budgets, not only a goal.
+"Very fast" is about how fast the app *feels*: startup, opening a document and scrolling. Bundle size is not a target in itself.
 
-| Metric | Budget |
+| Metric | Target |
 |--------|--------|
-| App shell JS, excluding PDF.js (gzip) | ≤ 80 KB |
-| App shell CSS (gzip) | ≤ 10 KB |
 | Library view interactive (repeat visit, cached by the service worker) | < 300 ms |
 | From opening a PDF to the first page visible (300-page book, mid-range laptop) | < 1 s |
 | Resuming a known document (scroll restored) | the target page renders first, before any other page |
