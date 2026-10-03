@@ -1,17 +1,33 @@
+import { DEFAULT_LOCAL_URL } from './local'
+
 // AI settings (SPEC.md §4.9). Kept in Web Storage, not IndexedDB: they are per-browser preferences, never exported.
 
 const SETTINGS_KEY = 'opengrasp:ai'
 const API_KEY = 'opengrasp:ai:gemini-key'
 
+export type AiProvider = 'gemini' | 'local'
+
 export interface AiSettings {
+  provider: AiProvider
+  /** Gemini model id. */
   model: string
+  /** Base URL of a local OpenAI-compatible server (Ollama, LM Studio, llama.cpp). */
+  localUrl: string
+  localModel: string
   /** Send the whole current page, not just the passage around the selection. */
   includePage: boolean
   /** Keep the API key in localStorage; otherwise it lives in sessionStorage and is gone when the tab closes. */
   rememberKey: boolean
 }
 
-export const DEFAULT_SETTINGS: AiSettings = { model: '', includePage: true, rememberKey: true }
+export const DEFAULT_SETTINGS: AiSettings = {
+  provider: 'gemini',
+  model: '',
+  localUrl: DEFAULT_LOCAL_URL,
+  localModel: '',
+  includePage: true,
+  rememberKey: true,
+}
 
 function read(storage: () => Storage, key: string): string | null {
   try {

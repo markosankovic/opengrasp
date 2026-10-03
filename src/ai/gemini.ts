@@ -1,3 +1,4 @@
+import { sseData } from './sse'
 import type { ChatMessage } from './types'
 
 // Google Gemini API, called directly from the browser with the user's own key (SPEC.md §4.9).
@@ -83,29 +84,7 @@ export async function* streamGemini(options: {
   })
   if (!response.ok || !response.body) throw await apiError(response)
 
-  let buffer = ''
-  const reader = response.body.pipeThrough(new TextDecoderStream()).getReader()
-  try {
-    for (;;) {
-      const { value, done } = await reader.read()
-      if (done) break
-      buffer += value
-      // Server-sent events are separated by a blank line; each carries one JSON chunk in its data line(s).
-      let end: number
-      while ((end = buffer.search(/\r?\n\r?\n/)) !== -1) {
-        const event = buffer.slice(0, end)
-        buffer = buffer.slice(end).replace(/^\r?\n\r?\n/, '')
-        const data = event
-          .split(/\r?\n/)
-          .filter((line) => line.startsWith('data:'))
-          .map((line) => line.slice(5).trimStart())
-          .join('\n')
-        if (data) yield* parseChunk(data)
-      }
-    }
-  } finally {
-    reader.releaseLock()
-  }
+  for await (const data of sseData(response.body)) yield* parseChunk(data)
 }
 
 function* parseChunk(data: string): Generator<string> {

@@ -143,8 +143,9 @@ export default function HelpButton({
               </li>
               <li>
                 <span className="font-medium">Ask AI</span> (optional): select a term or passage and choose Explain or
-                Ask, or type a question in the panel on the right. It uses Google Gemini with your own API key; only
-                your question, the selection and the current page are sent.
+                Ask, or type a question in the panel on the right. It uses Google Gemini with your own API key, or a
+                model on your own computer (Ollama, LM Studio, llama.cpp); only your question, the selection and the
+                current page are sent.
               </li>
               <li>
                 <span className="font-medium">Works offline</span> and can be installed as an app from the browser's

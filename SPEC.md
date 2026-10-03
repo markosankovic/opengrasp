@@ -49,11 +49,11 @@ OpenGrasp is an open-source, local-first Progressive Web App (PWA) for reading P
 | F10 | Export / import | Export all metadata to a JSON file and import it on another device or browser. This is the v1 answer for backups and for moving between devices (see §4.6). |
 | F11 | Links and outline | Internal and external links in the PDF work, and the table of contents opens in a panel on the left (§4.7). |
 | F12 | Find in document | A find bar that jumps between matches (§4.7). |
-| F13 | Ask AI | Optional. Select text and ask about it, or type a question about the page; answers stream into a panel on the right. Gemini first, with the user's own key; local models (Ollama) next (§4.9). |
+| F13 | Ask AI | Optional. Select text and ask about it, or type a question about the page; answers stream into a panel on the right. Google Gemini with the user's own key, or a local model (Ollama, LM Studio, llama.cpp) (§4.9). |
 
 ### 2.2 Later
 
-- **AI exploration, beyond F13**: more providers (Ollama and other OpenAI-compatible local servers, Chrome's built-in model, Claude, OpenAI); asking about a highlight or a page range; summarizing; saving answers as notes; turning notes into study material.
+- **AI exploration, beyond F13**: more providers (Chrome's built-in model, Claude, OpenAI); asking about a highlight or a page range; summarizing; saving answers as notes; turning notes into study material.
 - **A better notes editor:** Markdown live preview, code blocks with syntax highlighting, LaTeX/math rendering.
 - **Highlight refinements:** custom or editable colors, editing a highlight's range, and possibly merging highlight notes and standalone notes into one concept.
 - Search across all notes and highlights.
@@ -352,9 +352,12 @@ The browser's back button returns from a document to the library instead of leav
 
 ### 4.9 Ask AI
 
-An optional panel for asking a language model about what you're reading, e.g. a term the PDF uses but doesn't explain. **Gemini first**; the design keeps other providers a small adapter away.
+An optional panel for asking a language model about what you're reading, e.g. a term the PDF uses but doesn't explain. Two providers: **Google Gemini** and a **local model**; another provider is a small adapter away.
 
-- **Direct from the browser.** `src/ai/gemini.ts` calls the Gemini API (`streamGenerateContent?alt=sse`) with the user's own API key in the `x-goog-api-key` header, and streams the answer. There is no OpenGrasp server in between.
+- **Direct from the browser.** There is no OpenGrasp server in between. Both adapters stream server-sent events, parsed by `src/ai/sse.ts`.
+  - `src/ai/gemini.ts` calls the Gemini API (`streamGenerateContent?alt=sse`) with the user's own API key in the `x-goog-api-key` header.
+  - `src/ai/local.ts` calls an OpenAI-compatible server (`/v1/models`, `/v1/chat/completions` with `stream: true`): Ollama (default `http://localhost:11434/v1`), LM Studio or llama.cpp. A URL without a path gets `/v1`. Reasoning from thinking models (`delta.reasoning`) is skipped; the panel shows "Thinking…" until the answer starts.
+  - Ollama allows only localhost origins by default, so on the published site it must be started with `OLLAMA_ORIGINS=<the app's origin>`. A refused origin and a stopped server look the same to `fetch()`, so the error says both and the settings show the exact command. Chrome may ask for local-network permission.
 - **Asking:**
   - Selecting text in the PDF shows a popover with **Explain** (asks at once) and **Ask** (attaches the selection and focuses the input).
   - `a` asks about the current selection, or opens and closes the panel; the ✨ button in the reader bar does the same.
@@ -366,11 +369,15 @@ An optional panel for asking a language model about what you're reading, e.g. a 
   - Page text comes from `src/pdf/text.ts`, the shared, cached text-extraction module (§4.5).
 - **Panel:** on the right, 576 px (twice the outline panel), capped at 40% of the window so the page keeps room, overlaying the page on narrow windows. Its open state is remembered like the outline's. The conversation lives in memory while the document is open; persisting it, and saving answers as notes, comes later.
 - **Rendering answers:** `src/components/Markdown.tsx` handles paragraphs, headings, lists, quotes, fenced code, inline code, bold, italics and `https` links. It builds React elements and never sets HTML, so model output can't inject markup or scripts. This also protects the API key.
-- **Settings** (gear in the panel): API key (paste-to-connect: pasting a key-shaped value checks it, saves it and switches to the conversation, no button needed), model (listed from the API, text-chat models only, "flash" models first), "Send the whole current page", "Remember the key on this device".
+- **Settings** (gear in the panel): a Gemini / Local model switch; questions move to a provider once it connects, so browsing the other tab changes nothing.
+  - Gemini: API key (paste-to-connect: pasting a key-shaped value checks it, saves it and switches to the conversation, no button needed), model (listed from the API, text-chat models only, plain `gemini-<version>-flash` first, since variants may have no free-tier quota), "Remember the key on this device".
+  - Local: server URL and model (listed from the server, embedding models skipped). The server is looked up as soon as the tab opens; there is no key to wait for.
+  - Both: "Send the whole current page".
   - The key is kept in `localStorage` when remembered, otherwise in `sessionStorage` (gone when the tab closes). Settings are per-browser and aren't exported.
   - Known limitation: every GitHub Pages project of the same user shares the origin `markosankovic.github.io`, so another project there could read a remembered key. A custom domain (§1.1) removes this.
-- **Privacy:** the panel and the settings say what is sent and where ("Gemini · model", "sent to Google"). The PDF file itself is never uploaded. Nothing is sent until the user asks.
-- **Next:** an OpenAI-compatible adapter for Ollama, LM Studio and llama.cpp (`OLLAMA_ORIGINS` must allow the app's origin, and Chrome asks for local-network permission), and Chrome's built-in model.
+- **Privacy:** the panel and the settings say what is sent and where ("Gemini · model" / "Local · model", "sent to Google" / "sent to this server only"). The PDF file itself is never uploaded. Nothing is sent until the user asks.
+- **Known limitation:** the OpenAI-compatible API can't set Ollama's context length (`num_ctx`), so long conversations with a whole page each turn can exceed a small default window and lose the earliest turns.
+- **Next:** Chrome's built-in model.
 
 ## 5. Design guide
 
