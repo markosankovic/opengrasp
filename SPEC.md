@@ -47,7 +47,7 @@ OpenGrasp is an open-source, local-first Progressive Web App (PWA) for reading P
 | F8 | PWA | Installable app (manifest, standalone display) that works offline through a service worker. |
 | F9 | Hosting | A static build deployed to GitHub Pages by GitHub Actions on every push to `main`. |
 | F10 | Export / import | Export all metadata to a JSON file and import it on another device or browser. This is the v1 answer for backups and for moving between devices (see §4.6). |
-| F11 | Links and outline | Internal and external links in the PDF work, and the table of contents opens as a popover (§4.7). |
+| F11 | Links and outline | Internal and external links in the PDF work, and the table of contents opens in a panel on the left (§4.7). |
 | F12 | Find in document | A find bar that jumps between matches (§4.7). |
 
 ### 2.2 Later
@@ -309,7 +309,7 @@ There is no sync in v1. Moving data between devices or browsers, and backing it 
 **Links and outline (MVP):**
 - Internal links (e.g. table-of-contents entries and cross-references) scroll to their target.
 - External links open in a new tab with `rel="noopener noreferrer"`.
-- The outline from `getOutline()` opens as a popover (§5.2).
+- The outline from `getOutline()` opens in a panel on the left (§5.2). Destinations are resolved to a page and, when the destination names one, a position on it, so an entry scrolls to its heading rather than the page top.
 
 **Find in document (MVP):**
 - `/` opens a small find bar.
@@ -390,8 +390,12 @@ Library                              Reader
   - Selecting a document whose file isn't available prompts for the file and shows its expected name.
   - A trash icon (shown on hover or keyboard focus, always on devices without hover) removes a document. The row turns into an inline confirm (Escape cancels), because the document's position, notes and highlights are deleted. The PDF file is never touched.
 - **Reader top bar:**
-  - Height 40 px or less, containing back, title, page `n / total`, zoom, and a notes toggle.
+  - Height 40 px or less. Left: the brace mark (back to the library) and the table-of-contents toggle (`PanelLeft`). Center: the title. Right: page `n / total`, zoom, a notes toggle, and help (`CircleHelp`).
   - It hides automatically after a few seconds of scrolling and comes back on mouse movement near the top or on `Esc`.
+- **Table of contents panel:**
+  - On the left, toggled from the top bar or with `t`, closed by default; its open/closed state is remembered on wide windows.
+  - Entries show their page number; the entry the reader is in is highlighted (its nearest visible parent when collapsed), and its parents are expanded when the panel opens.
+  - On narrow windows it overlays the page, and choosing an entry or tapping outside closes it.
 - **Notes panel:**
   - On the right, resizable, closed by default, and its open/closed state is remembered.
   - On narrow windows it overlays the page instead of shrinking it.
@@ -466,7 +470,7 @@ All colors are CSS custom properties defined once in Tailwind v4's `@theme`. Com
   | Navigation | `ArrowLeft`, `ChevronLeft`, `ChevronRight` |
   | Open and zoom | `FileUp`, `ZoomIn`, `ZoomOut` |
   | Notes and highlights | `PanelRight` (notes), `Highlighter`, `StickyNote`, `Copy` |
-  | Library and outline | `Search`, `List` (outline), `LayoutGrid` (thumbnails) |
+  | Library and outline | `Search`, `PanelLeft` (outline), `LayoutGrid` (thumbnails) |
   | Settings and actions | `Settings`, `Sun` / `Moon`, `Trash2`, `X` |
 
 ### 5.6 App icon and brand
@@ -486,15 +490,18 @@ All colors are CSS custom properties defined once in Tailwind v4's `@theme`. Com
 | Key | Action |
 |-----|--------|
 | `o` / `Ctrl+O` | Load PDF |
+| `1`–`9` | Library: open the nth document in the list |
+| `b` | Back to the library |
 | `j` / `k`, `↓` / `↑` | Scroll |
 | `n` / `p`, `→` / `←`, `PgDn` / `PgUp` | Next / previous page |
 | `g` | Go to page |
 | `+` / `-` / `0` | Zoom in / out / fit width |
 | `h` | Highlight the selection |
+| `t` | Toggle table of contents |
 | `N` (`Shift+n`) | Toggle notes panel |
 | `/` | Search (document; later notes) |
 | `Esc` | Close popover or panel; show the top bar |
-| `?` | Shortcut cheat sheet |
+| `?` | Help: what the app does, how to use it, and the shortcuts (also the `?` button right of Load PDF in the library header, and at the right end of the reader bar) |
 
 ## 6. Performance
 

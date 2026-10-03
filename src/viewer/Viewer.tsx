@@ -7,6 +7,7 @@ import {
   clampZoom,
   computeLayout,
   GAP,
+  PADDING,
   PDF_TO_CSS,
   pageAt,
   resolveScale,
@@ -33,7 +34,8 @@ export interface ViewerState {
 }
 
 export interface ViewerHandle {
-  goToPage(page: number): void
+  /** Scrolls to a page, or to a point on it (fraction of its height from the top, e.g. an outline destination). */
+  goToPage(page: number, fy?: number | null): void
   /** Next (+1) / previous (-1) page, relative to the page currently shown. */
   stepPage(delta: 1 | -1): void
   scrollBy(dy: number): void
@@ -149,12 +151,13 @@ export default function Viewer({ pdf, initialProgress, onStateChange, ref }: Pro
     return typeof z === 'number' ? z : (current?.scale ?? PDF_TO_CSS) / PDF_TO_CSS
   }
 
-  function goToPage(page: number) {
+  function goToPage(page: number, fy?: number | null) {
     const el = containerRef.current
     const current = latest.current.layout
     if (!el || !current) return
     const i = Math.min(Math.max(page, 1), current.tops.length) - 1
-    el.scrollTop = current.tops[i]! - GAP / 2
+    // A point inside the page keeps a little context above it, as a heading usually sits right below its target.
+    el.scrollTop = fy ? current.tops[i]! + fy * current.heights[i]! - PADDING : current.tops[i]! - GAP / 2
   }
 
   useImperativeHandle(ref, () => ({

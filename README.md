@@ -6,6 +6,33 @@ Your PDFs never leave your device. OpenGrasp stores only metadata: reading posit
 
 **App:** https://markosankovic.github.io/opengrasp/ · **Spec:** [SPEC.md](SPEC.md)
 
+## Using OpenGrasp
+
+- **Open a PDF** by dropping it anywhere on the library page, or with **Load PDF**.
+- **Your place is saved automatically:** page, position on the page and zoom. Reopen the document and you continue where you stopped.
+- **Private by design:** the PDF itself is never stored or uploaded, only the reading position, in your browser (IndexedDB). In Chromium-based browsers the app keeps a handle to the file, so reopening usually takes one click; elsewhere you pick the file again.
+- **Table of contents:** a panel on the left lists the document's chapters, marks the one you're in, and jumps straight to a heading.
+- **Works offline** and can be installed as an app.
+- Press **`?`** or the **?** button in the top bar for help and all keyboard shortcuts.
+
+Notes, highlights, find in document and export/import are planned for v1 (see [SPEC.md](SPEC.md)).
+
+### Keyboard shortcuts
+
+| Key | Action |
+|-----|--------|
+| `o` / `Ctrl+O` | Library: load a PDF |
+| `1`–`9` | Library: open a document from the list |
+| `j` / `k`, `↓` / `↑` | Scroll |
+| `n` / `p`, `→` / `←`, `PgDn` / `PgUp` | Next / previous page |
+| `Home` / `End` | First / last page |
+| `g` | Go to page |
+| `+` / `-` / `0` | Zoom in / out / fit width (also `Ctrl` + wheel) |
+| `t` | Table of contents |
+| `b` | Back to the library |
+| `Esc` | Close the table of contents or help |
+| `?` | Help |
+
 ## Development
 
 Requires Node.js 22.13 or newer (see `.nvmrc`).

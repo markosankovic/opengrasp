@@ -2,9 +2,11 @@ import { FileUp, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { listRecentDocuments, removeDocument } from '../db'
 import type { DocumentMeta } from '../db/schema'
+import { shortcutsBlocked } from '../keyboard'
 import { handleFromDrop, pickPdf, type PickedFile } from '../pdf/fileAccess'
 import { openPdf, type OpenedPdf } from '../pdf/openPdf'
 import { reopenInteractive } from '../pdf/reopen'
+import HelpButton from './Help'
 import Logo from './Logo'
 
 const relativeTime = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
@@ -67,6 +69,27 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
     }
   }
 
+  // o / Ctrl+O loads a PDF, 1–9 open the documents in list order (SPEC.md §5.7).
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (shortcutsBlocked(e) || e.altKey || confirmingRemove) return
+      const mod = e.ctrlKey || e.metaKey
+      if (e.key === 'o' && !e.shiftKey) {
+        // Ctrl+O would otherwise open the browser's own file dialog.
+        e.preventDefault()
+        void pick()
+        return
+      }
+      if (mod) return
+      const doc = /^[1-9]$/.test(e.key) ? recent[Number(e.key) - 1] : undefined
+      if (!doc) return
+      e.preventDefault()
+      void reopen(doc)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  })
+
   async function remove(doc: DocumentMeta) {
     setConfirmingRemove(null)
     await removeDocument(doc.id)
@@ -113,15 +136,19 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
         <h1 aria-label="OpenGrasp">
           <Logo />
         </h1>
-        <button
-          type="button"
-          onClick={() => void pick()}
-          className="flex items-center gap-2 rounded-lg px-3.5 py-2 font-medium text-muted hover:bg-surface hover:text-text"
-        >
-          <FileUp size={16} aria-hidden />
-          {/* Browsers snap the baseline up to a whole pixel here; the 0.5px nudge was measured to center it exactly. */}
-          <span className="text-trim relative top-[0.5px]">Load PDF</span>
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => void pick()}
+            title="Load PDF (o)"
+            className="flex items-center gap-2 rounded-lg px-3.5 py-2 font-medium text-muted hover:bg-surface hover:text-text"
+          >
+            <FileUp size={16} aria-hidden />
+            {/* Browsers snap the baseline up to a whole pixel here; the 0.5px nudge was measured to center it exactly. */}
+            <span className="text-trim relative top-[0.5px]">Load PDF</span>
+          </button>
+          <HelpButton className="rounded-lg p-[7px] text-muted hover:bg-surface hover:text-text" />
+        </div>
       </header>
 
       {error && <p className="py-2 text-danger">{error}</p>}
@@ -132,7 +159,7 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
 
       {recent.length > 0 ? (
         <ul className="-mx-3 flex flex-col gap-1">
-          {recent.map((doc) => (
+          {recent.map((doc, i) => (
             <li key={doc.id} className="group flex items-center gap-2 rounded-lg hover:bg-surface">
               {confirmingRemove === doc.id ? (
                 <div
@@ -170,7 +197,7 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
                   <button
                     type="button"
                     onClick={() => void reopen(doc)}
-                    title={`Open ${doc.fileName}`}
+                    title={i < 9 ? `Open ${doc.fileName} (${i + 1})` : `Open ${doc.fileName}`}
                     className="flex min-w-0 flex-1 items-center justify-between gap-6 rounded-lg px-3 py-3.5 text-left"
                   >
                     <span className="min-w-0">
