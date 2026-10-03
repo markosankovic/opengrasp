@@ -61,3 +61,17 @@ export async function putFileHandle(documentId: string, handle: FileSystemFileHa
 export async function deleteFileHandle(documentId: string): Promise<void> {
   await (await getDB()).delete('fileHandles', documentId)
 }
+
+/** Removes a document and everything stored for it (progress, highlights, notes, file handle). The PDF file is untouched. */
+export async function removeDocument(id: string): Promise<void> {
+  const tx = (await getDB()).transaction(['documents', 'highlights', 'notes', 'fileHandles'], 'readwrite')
+  const highlightKeys = await tx.objectStore('highlights').index('documentId').getAllKeys(id)
+  const noteKeys = await tx.objectStore('notes').index('documentId').getAllKeys(id)
+  await Promise.all([
+    tx.objectStore('documents').delete(id),
+    tx.objectStore('fileHandles').delete(id),
+    ...highlightKeys.map((key) => tx.objectStore('highlights').delete(key)),
+    ...noteKeys.map((key) => tx.objectStore('notes').delete(key)),
+    tx.done,
+  ])
+}

@@ -358,6 +358,7 @@ Library                              Reader
   - A plain list with the title, progress percentage and relative last-opened time.
   - Dropping a PDF anywhere in the window opens it.
   - Selecting a document whose file isn't available prompts for the file and shows its expected name.
+  - A trash icon (shown on hover or keyboard focus, always on devices without hover) removes a document. The row turns into an inline confirm (Escape cancels), because the document's position, notes and highlights are deleted. The PDF file is never touched.
 - **Reader top bar:**
   - Height 40 px or less, containing back, title, page `n / total`, zoom, and a notes toggle.
   - It hides automatically after a few seconds of scrolling and comes back on mouse movement near the top or on `Esc`.
