@@ -347,7 +347,7 @@ The browser's back button returns from a document to the library instead of leav
   - If a stored file handle still has read permission, the document reopens silently at the saved position.
   - Otherwise a "Continue reading" screen shows the title, the file name and the saved page. One click reopens it (asking for permission, or opening the picker). File access always needs a user gesture.
   - If the slug is unknown, it shows "This document isn't in your library." with a link back.
-- **Tab title:** while reading, it is `<title> · OpenGrasp`.
+- **Tab title:** while reading, it is the document title alone; the installed app's window already puts "OpenGrasp - " in front, and in a browser tab the favicon identifies the app.
 - **GitHub Pages:** it has no SPA fallback, so the build copies `index.html` to `404.html`, which Pages serves for unknown paths. Once the service worker is installed, its navigation fallback serves every route, including offline. `404.html` is excluded from the precache.
 
 ### 4.9 Ask AI

@@ -128,7 +128,7 @@ export default function Reader({ opened, onClose, onProgressSaved }: Props) {
   useEffect(() => viewer.current?.focus(), [])
 
   useEffect(() => {
-    document.title = `${meta.title ?? meta.fileName} · OpenGrasp`
+    document.title = meta.title ?? meta.fileName
     return () => {
       document.title = 'OpenGrasp'
     }
