@@ -15,6 +15,10 @@ async function apiError(response: Response): Promise<Error> {
   try {
     const body = (await response.json()) as { error?: { message?: string } }
     if (body.error?.message) message = body.error.message
+    // "limit: 0" is not a used-up quota: the free tier doesn't cover this model at all, so waiting won't help.
+    if (response.status === 429 && /free_tier.*limit: 0/s.test(message)) {
+      message = "This model isn't included in the free tier for your key. Choose another model in Settings, or enable billing for the key in Google AI Studio."
+    }
   } catch {
     // Not JSON: keep the status line.
   }
@@ -47,9 +51,12 @@ export async function listGeminiModels(apiKey: string, signal?: AbortSignal): Pr
   return models.sort((a, b) => rank(a.id) - rank(b.id) || b.id.localeCompare(a.id, undefined, { numeric: true }))
 }
 
-/** Fast, cheap "flash" models first, they suit quick questions while reading; previews and experiments last. */
+/**
+ * Fast, cheap "flash" models first, they suit quick questions while reading; previews and experiments last.
+ * Plain "gemini-<version>-flash" leads: variants (e.g. "omni") may have no free-tier quota even though the key lists them.
+ */
 function rank(id: string): number {
-  let score = /flash/.test(id) ? 0 : /pro/.test(id) ? 1 : 2
+  let score = /^gemini-[\d.]+-flash$/.test(id) ? -1 : /flash/.test(id) ? 0 : /pro/.test(id) ? 1 : 2
   if (/lite/.test(id)) score += 0.5
   if (/preview|exp|latest/.test(id)) score += 3
   if (/gemma/.test(id)) score += 5
