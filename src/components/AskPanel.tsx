@@ -371,6 +371,16 @@ function AiSettingsForm({
     }
   }
 
+  /** Checks the key (unless its model list is already loaded), stores it and returns to the conversation. */
+  async function save(k: string) {
+    const trimmed = k.trim()
+    const list = models && trimmed === apiKey ? models : await connect(trimmed)
+    if (!list) return
+    const chosen = list.some((x) => x.id === model) ? model : list[0]!.id
+    saveApiKey(trimmed, settings.rememberKey)
+    onConnected(trimmed, chosen)
+  }
+
   // With a saved key, load the model list straight away so the model can be changed.
   useEffect(() => {
     if (!apiKey) return
@@ -396,13 +406,7 @@ function AiSettingsForm({
     <form
       onSubmit={(e) => {
         e.preventDefault()
-        void (async () => {
-          const list = models && key.trim() === apiKey ? models : await connect(key)
-          if (!list) return
-          const chosen = list.some((x) => x.id === model) ? model : list[0]!.id
-          saveApiKey(key.trim(), settings.rememberKey)
-          onConnected(key.trim(), chosen)
-        })()
+        void save(key)
       }}
       className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-4"
     >
@@ -425,7 +429,16 @@ function AiSettingsForm({
             setKey(e.target.value)
             setModels(null)
           }}
-          placeholder="AIza…"
+          // Paste-to-connect: pasting something key-shaped replaces the field and connects right away.
+          onPaste={(e) => {
+            const pasted = e.clipboardData.getData('text').trim()
+            if (!/^\S{20,}$/.test(pasted)) return
+            e.preventDefault()
+            setKey(pasted)
+            setModels(null)
+            void save(pasted)
+          }}
+          placeholder="Paste your key"
           className={`${field} font-mono`}
         />
         <p className="mt-1.5 text-xs text-muted">
@@ -433,7 +446,7 @@ function AiSettingsForm({
           <a href={GET_KEY_URL} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
             Google AI Studio
           </a>
-          .
+          , then paste it here. OpenGrasp connects as soon as you paste.
         </p>
       </div>
 

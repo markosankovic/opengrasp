@@ -366,7 +366,7 @@ An optional panel for asking a language model about what you're reading, e.g. a 
   - Page text comes from `src/pdf/text.ts`, the shared, cached text-extraction module (§4.5).
 - **Panel:** on the right, 380 px, overlaying the page on narrow windows. Its open state is remembered like the outline's. The conversation lives in memory while the document is open; persisting it, and saving answers as notes, comes later.
 - **Rendering answers:** `src/components/Markdown.tsx` handles paragraphs, headings, lists, quotes, fenced code, inline code, bold, italics and `https` links. It builds React elements and never sets HTML, so model output can't inject markup or scripts. This also protects the API key.
-- **Settings** (gear in the panel): API key, model (listed from the API, text-chat models only, "flash" models first), "Send the whole current page", "Remember the key on this device".
+- **Settings** (gear in the panel): API key (paste-to-connect: pasting a key-shaped value checks it, saves it and switches to the conversation, no button needed), model (listed from the API, text-chat models only, "flash" models first), "Send the whole current page", "Remember the key on this device".
   - The key is kept in `localStorage` when remembered, otherwise in `sessionStorage` (gone when the tab closes). Settings are per-browser and aren't exported.
   - Known limitation: every GitHub Pages project of the same user shares the origin `markosankovic.github.io`, so another project there could read a remembered key. A custom domain (§1.1) removes this.
 - **Privacy:** the panel and the settings say what is sent and where ("Gemini · model", "sent to Google"). The PDF file itself is never uploaded. Nothing is sent until the user asks.
