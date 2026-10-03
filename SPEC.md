@@ -89,7 +89,7 @@ OpenGrasp is an open-source, local-first Progressive Web App (PWA) for reading P
 | Persistence | **IndexedDB** via **idb** | Decided; the comparison is in §3.1. |
 | Icons | **Lucide** (`lucide-react`) | See §5.5. |
 | PWA | **vite-plugin-pwa** (Workbox) | Generates the manifest and service worker. |
-| Hosting | **GitHub Pages** + **GitHub Actions** | `.github/workflows/deploy.yml`: `npm run build` → deploy `dist/`. Vite `base` is `/opengrasp/` for builds (unless a custom domain is used). The dev server uses `/`. |
+| Hosting | **GitHub Pages** + **GitHub Actions** | `.github/workflows/deploy.yml`: `npm run build` → deploy `dist/`. Vite `base` is `/opengrasp/` everywhere (dev, preview, build) unless a custom domain is used. |
 | License | **MIT** | Already in the repo. |
 
 ### 3.1 Storage library: Dexie.js vs idb
