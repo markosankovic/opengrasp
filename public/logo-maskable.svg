@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <style>
+    .s { fill: none; stroke: #fff; stroke-width: 48; stroke-linecap: round; stroke-linejoin: round; }
+  </style>
+  <rect width="512" height="512" fill="#2563eb"/>
+  <g transform="translate(256 256) scale(0.72) translate(-256 -256)">
+  <path class="s" d="M196 88 C148 88 136 108 136 156 L136 212 C136 240 120 256 88 256 C120 256 136 272 136 300 L136 356 C136 404 148 424 196 424"/>
+  <path class="s" d="M248 168 H408 M248 256 H368 M248 344 H408"/>
+  </g>
+</svg>

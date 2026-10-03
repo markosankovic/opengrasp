@@ -1,6 +1,6 @@
 # OpenGrasp — Specification
 
-> Status: **Draft v0.6** (2026-10-03). Derived from the initial naming/architecture brainstorm. This is a living document; open questions are tracked at the end.
+> Status: **Draft v0.7** (2026-10-03). Derived from the initial naming/architecture brainstorm. This is a living document; open questions are tracked at the end.
 
 ## 1. Overview
 
@@ -418,11 +418,13 @@ All colors are CSS custom properties defined once in Tailwind v4's `@theme`. Com
 ### 5.6 App icon and brand
 
 - **Wordmark:** "OpenGrasp" set in the system font at weight 600. No custom logotype for now.
-- **App icon:** a simple, single-color glyph that reads clearly at 16 px (favicon) and as a maskable 512 px PWA icon. **Approved direction:** an open, bracket-like shape (open hand / `{`) around a page. *The actual artwork is still to be designed.*
-- **Required sizes:**
-  - `favicon.svg`
+- **App icon (final): "Brace" `{≡`**, a code brace holding lines of text, in the accent color. The source files are final and shouldn't be redrawn:
+  - `public/logo.svg` is the master and the SVG favicon. It switches to the dark accent under `prefers-color-scheme: dark`.
+  - `public/logo-maskable.svg` is a white glyph on a full accent background, scaled into the 80% safe zone.
+- **Generated sizes:** produced by `@vite-pwa/assets-generator` (preset `minimal-2023`) from the two source files, not drawn by hand.
+  - `favicon.ico`
   - `apple-touch-icon` 180 px
-  - PWA icons at 192 px and 512 px
+  - PWA icons at 64, 192 and 512 px
   - a maskable 512 px icon
 
 ### 5.7 Keyboard shortcuts (initial)
