@@ -1,15 +1,18 @@
-import { MessagesSquare, PanelLeft, ZoomIn, ZoomOut } from 'lucide-react'
+import { MessagesSquare, NotebookPen, PanelLeft, ZoomIn, ZoomOut } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { saveProgress } from '../db'
+import { putNote, saveProgress } from '../db'
 import type { DocumentMeta } from '../db/schema'
 import { shortcutsBlocked } from '../keyboard'
 import type { OpenedPdf } from '../pdf/openPdf'
 import { loadOutline, type OutlineItem } from '../pdf/outline'
 import { pdfSelection } from '../viewer/selection'
 import Viewer, { type ViewerHandle, type ViewerState } from '../viewer/Viewer'
+import { noteFromAnswer } from '../ai/note'
 import type { Quote } from '../ai/types'
 import AskPanel, { type AskRequest } from './AskPanel'
 import HelpButton from './Help'
+import NotesPanel, { type NotesSignal } from './NotesPanel'
+import PanelTabs, { type SidePanel } from './PanelTabs'
 import { LogoMark } from './Logo'
 import Outline from './Outline'
 import PageInput from './PageInput'
@@ -19,7 +22,9 @@ import SelectionPopover from './SelectionPopover'
 const SAVE_DELAY_MS = 500
 const SCROLL_STEP = 60
 const OUTLINE_OPEN_KEY = 'opengrasp:outline-open'
-const ASK_OPEN_KEY = 'opengrasp:ask-open'
+const SIDE_PANEL_KEY = 'opengrasp:side-panel'
+/** Before Notes existed, only the Ask panel's open state was remembered. */
+const LEGACY_ASK_OPEN_KEY = 'opengrasp:ask-open'
 /** Below this width the side panels overlay the page instead of narrowing it (Tailwind's md breakpoint). */
 const NARROW = '(max-width: 767px)'
 
@@ -33,10 +38,26 @@ function readOpen(key: string): boolean {
 
 /** Panel open states are remembered on wide windows only; on narrow ones the panels cover the page. */
 function writeOpen(key: string, open: boolean): void {
+  writeValue(key, open ? '1' : '0')
+}
+
+function writeValue(key: string, value: string): void {
   try {
-    if (!matchMedia(NARROW).matches) localStorage.setItem(key, open ? '1' : '0')
+    if (!matchMedia(NARROW).matches) localStorage.setItem(key, value)
   } catch {
     // Storage unavailable (private mode, blocked site data): the panel just starts closed next time.
+  }
+}
+
+/** Which tab of the right-hand panel was open, if any. */
+function readSidePanel(): SidePanel | null {
+  try {
+    if (matchMedia(NARROW).matches) return null
+    const saved = localStorage.getItem(SIDE_PANEL_KEY)
+    if (saved === 'ask' || saved === 'notes') return saved
+    return saved === null && localStorage.getItem(LEGACY_ASK_OPEN_KEY) === '1' ? 'ask' : null
+  } catch {
+    return null
   }
 }
 
@@ -55,18 +76,43 @@ export default function Reader({ opened, onClose, onProgressSaved }: Props) {
   const [zoomPercent, setZoomPercent] = useState<number | null>(null)
   const [outline, setOutline] = useState<OutlineItem[] | null>(null)
   const [outlineOpen, setOutlineOpen] = useState(() => readOpen(OUTLINE_OPEN_KEY))
-  const [askOpen, setAskOpen] = useState(() => readOpen(ASK_OPEN_KEY))
-  // Mounted from the first open on, and only hidden when closed, so the conversation survives closing the panel.
-  const [askMounted, setAskMounted] = useState(askOpen)
+  // The right-hand panel: Ask or Notes, one tab at a time (SPEC.md §5.2).
+  const [side, setSide] = useState<SidePanel | null>(readSidePanel)
+  // Each tab is mounted from its first open on, and only hidden after, so a conversation or a note being written
+  // survives switching tabs or closing the panel.
+  const [mounted, setMounted] = useState<Record<SidePanel, boolean>>({ ask: side === 'ask', notes: side === 'notes' })
   const [askRequest, setAskRequest] = useState<AskRequest | null>(null)
   const askId = useRef(0)
+  const [notesSignal, setNotesSignal] = useState<NotesSignal>({ revision: 0 })
 
-  useEffect(() => writeOpen(ASK_OPEN_KEY, askOpen), [askOpen])
-  if (askOpen && !askMounted) setAskMounted(true)
+  useEffect(() => writeValue(SIDE_PANEL_KEY, side ?? ''), [side])
+  if (side && !mounted[side]) setMounted({ ...mounted, [side]: true })
+
+  const toggleSide = useCallback((panel: SidePanel) => setSide((open) => (open === panel ? null : panel)), [])
 
   const ask = useCallback((quote?: Quote, question?: string) => {
-    setAskOpen(true)
+    setSide('ask')
     setAskRequest({ id: ++askId.current, quote, question })
+  }, [])
+
+  const closeSide = useCallback(() => {
+    setSide(null)
+    viewer.current?.focus()
+  }, [])
+
+  const saveNote = useCallback(
+    async (turn: Parameters<typeof noteFromAnswer>[0]) => {
+      const note = noteFromAnswer(turn, meta.id)
+      await putNote(note)
+      setNotesSignal((s) => ({ revision: s.revision + 1 }))
+      return note.id
+    },
+    [meta.id],
+  )
+
+  const showNote = useCallback((id: string) => {
+    setSide('notes')
+    setNotesSignal((s) => ({ revision: s.revision + 1, focusId: id }))
   }, [])
 
   useEffect(() => {
@@ -169,8 +215,9 @@ export default function Reader({ opened, onClose, onProgressSaved }: Props) {
           if (selection) {
             ask({ text: selection.text, pageNumber: selection.pageNumber })
             document.getSelection()?.removeAllRanges()
-          } else setAskOpen((open) => !open)
+          } else toggleSide('ask')
         }
+        actions.m = () => toggleSide('notes')
         actions.Escape = () => setOutlineOpen(false)
         actions.b = () => {
           flush()
@@ -184,7 +231,7 @@ export default function Reader({ opened, onClose, onProgressSaved }: Props) {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [pdf.numPages, flush, onClose, ask])
+  }, [pdf.numPages, flush, onClose, ask, toggleSide])
 
   const button = 'rounded-md p-1.5 text-muted hover:bg-surface hover:text-text'
 
@@ -251,13 +298,23 @@ export default function Reader({ opened, onClose, onProgressSaved }: Props) {
           <div className="flex items-center gap-1">
             <button
               type="button"
-              onClick={() => setAskOpen((open) => !open)}
+              onClick={() => toggleSide('ask')}
               aria-label="Ask AI"
-              aria-pressed={askOpen}
+              aria-pressed={side === 'ask'}
               title="Ask AI (a)"
-              className={`${button} ${askOpen ? 'bg-surface text-text' : ''}`}
+              className={`${button} ${side === 'ask' ? 'bg-surface text-text' : ''}`}
             >
               <MessagesSquare size={16} aria-hidden />
+            </button>
+            <button
+              type="button"
+              onClick={() => toggleSide('notes')}
+              aria-label="Notes"
+              aria-pressed={side === 'notes'}
+              title="Notes (m)"
+              className={`${button} ${side === 'notes' ? 'bg-surface text-text' : ''}`}
+            >
+              <NotebookPen size={16} aria-hidden />
             </button>
             <HelpButton className="rounded-md p-1.5 text-muted hover:bg-surface hover:text-text" />
           </div>
@@ -277,28 +334,46 @@ export default function Reader({ opened, onClose, onProgressSaved }: Props) {
           </nav>
         )}
         <Viewer ref={viewer} pdf={pdf} initialProgress={meta.progress} onStateChange={onStateChange} />
-        {askOpen && (
-          <div className="absolute inset-0 z-10 bg-black/20 md:hidden" onClick={() => setAskOpen(false)} aria-hidden />
-        )}
-        {askMounted && (
+        {side && <div className="absolute inset-0 z-10 bg-black/20 md:hidden" onClick={() => setSide(null)} aria-hidden />}
+        {(mounted.ask || mounted.notes) && (
           <aside
-            aria-label="Ask AI"
-            hidden={!askOpen}
+            aria-label={side === 'notes' ? 'Notes' : 'Ask AI'}
+            hidden={!side}
             className="w-[min(576px,40vw)] shrink-0 border-l border-border bg-bg max-md:absolute max-md:inset-y-0 max-md:right-0 max-md:z-10 max-md:w-[min(576px,100%)] max-md:shadow-xl"
           >
-            <AskPanel
-              pdf={pdf}
-              documentId={meta.id}
-              title={meta.title ?? meta.fileName}
-              outline={outline}
-              currentPage={currentPage}
-              request={askRequest}
-              onClose={() => {
-                setAskOpen(false)
-                viewer.current?.focus()
-              }}
-              onDone={() => viewer.current?.focus()}
-            />
+            {mounted.ask && (
+              <div hidden={side !== 'ask'} className="h-full">
+                <AskPanel
+                  pdf={pdf}
+                  documentId={meta.id}
+                  title={meta.title ?? meta.fileName}
+                  outline={outline}
+                  currentPage={currentPage}
+                  request={askRequest}
+                  tabs={<PanelTabs active="ask" onSelect={setSide} />}
+                  onSaveNote={saveNote}
+                  onShowNote={showNote}
+                  onClose={closeSide}
+                  onDone={() => viewer.current?.focus()}
+                />
+              </div>
+            )}
+            {mounted.notes && (
+              <div hidden={side !== 'notes'} className="h-full">
+                <NotesPanel
+                  documentId={meta.id}
+                  currentPage={currentPage}
+                  tabs={<PanelTabs active="notes" onSelect={setSide} />}
+                  signal={notesSignal}
+                  onGoToPage={(page) => {
+                    viewer.current?.goToPage(page)
+                    if (matchMedia(NARROW).matches) setSide(null)
+                  }}
+                  onClose={closeSide}
+                  onDone={() => viewer.current?.focus()}
+                />
+              </div>
+            )}
           </aside>
         )}
       </div>

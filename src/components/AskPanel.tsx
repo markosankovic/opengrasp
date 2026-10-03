@@ -1,4 +1,4 @@
-import { ArrowUp, Check, Copy, History, Settings, Square, SquarePen, Trash2, X } from 'lucide-react'
+import { ArrowUp, Check, Copy, History, NotebookPen, Settings, Square, SquarePen, Trash2, X } from 'lucide-react'
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { listGeminiModels, streamGemini, type GeminiModel } from '../ai/gemini'
@@ -43,6 +43,12 @@ interface Props {
   outline: OutlineItem[] | null
   currentPage: number
   request: AskRequest | null
+  /** The panel tabs, shown in place of a title. */
+  tabs: ReactNode
+  /** Saves an answer as a note on its page; resolves to the note's id. */
+  onSaveNote: (turn: ConversationTurn) => Promise<string>
+  /** Shows a saved note in the Notes tab. */
+  onShowNote: (id: string) => void
   onClose: () => void
   /** Hands keyboard focus back to the page, e.g. after Esc in the input. */
   onDone: () => void
@@ -71,7 +77,19 @@ function excerpt(text: string, max = 160): string {
 }
 
 /** Right-hand panel for asking an AI model about the document (SPEC.md §4.9): Gemini or a local model server. */
-export default function AskPanel({ pdf, documentId, title, outline, currentPage, request, onClose, onDone }: Props) {
+export default function AskPanel({
+  pdf,
+  documentId,
+  title,
+  outline,
+  currentPage,
+  request,
+  tabs,
+  onSaveNote,
+  onShowNote,
+  onClose,
+  onDone,
+}: Props) {
   const [settings, setSettings] = useState<AiSettings>(loadSettings)
   const [apiKey, setApiKey] = useState(loadApiKey)
   const [view, setView] = useState<'chat' | 'settings' | 'history'>(() => (isReady(loadSettings(), loadApiKey()) ? 'chat' : 'settings'))
@@ -129,6 +147,7 @@ export default function AskPanel({ pdf, documentId, title, outline, currentPage,
         (t): ConversationTurn => ({
           question: t.question,
           quote: t.quote,
+          pageNumber: t.pageNumber,
           prompt: t.prompt,
           answer: t.answer,
           status: t.status,
@@ -171,7 +190,18 @@ export default function AskPanel({ pdf, documentId, title, outline, currentPage,
     if (!conversation) setConversation({ id: crypto.randomUUID(), createdAt: Date.now() })
     setTurns((all) => [
       ...all,
-      { id, question: question.trim(), quote: attached, prompt, answer: '', status: 'streaming', provider, model, createdAt: Date.now() },
+      {
+        id,
+        question: question.trim(),
+        quote: attached,
+        pageNumber: page,
+        prompt,
+        answer: '',
+        status: 'streaming',
+        provider,
+        model,
+        createdAt: Date.now(),
+      },
     ])
     setDraft('')
     setQuote(undefined)
@@ -232,8 +262,8 @@ export default function AskPanel({ pdf, documentId, title, outline, currentPage,
   return (
     <div className="flex h-full flex-col">
       <header className="flex h-10 shrink-0 items-center gap-1 border-b border-border px-2">
-        <div className="min-w-0 flex-1 px-1">
-          <span className="font-medium">Ask</span>
+        <div className="flex min-w-0 flex-1 items-center">
+          {tabs}
           {ready && (
             <span
               className="ml-2 truncate text-xs text-muted"
@@ -317,7 +347,7 @@ export default function AskPanel({ pdf, documentId, title, outline, currentPage,
             ) : (
               <div className="flex flex-col gap-6">
                 {turns.map((turn) => (
-                  <TurnView key={turn.id} turn={turn} />
+                  <TurnView key={turn.id} turn={turn} onSaveNote={onSaveNote} onShowNote={onShowNote} />
                 ))}
               </div>
             )}
@@ -394,8 +424,17 @@ export default function AskPanel({ pdf, documentId, title, outline, currentPage,
   )
 }
 
-function TurnView({ turn }: { turn: Turn }) {
+function TurnView({
+  turn,
+  onSaveNote,
+  onShowNote,
+}: {
+  turn: Turn
+  onSaveNote: (turn: ConversationTurn) => Promise<string>
+  onShowNote: (id: string) => void
+}) {
   const [copied, setCopied] = useState(false)
+  const [noteId, setNoteId] = useState<string | null>(null)
   return (
     <div className="flex flex-col gap-3">
       <div className="self-end rounded-xl bg-surface px-3 py-2">
@@ -415,7 +454,9 @@ function TurnView({ turn }: { turn: Turn }) {
         {turn.status === 'error' && <p className="mt-2 text-danger">{turn.error}</p>}
         {turn.status === 'stopped' && <p className="mt-2 text-xs text-muted">Stopped.</p>}
         {turn.status === 'done' && (
-          <div className="mt-2 flex items-center gap-2 opacity-0 group-hover/answer:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100">
+          <div
+            className={`mt-2 flex items-center gap-1 group-hover/answer:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100 ${noteId ? '' : 'opacity-0'}`}
+          >
           <button
             type="button"
             onClick={() => {
@@ -430,6 +471,21 @@ function TurnView({ turn }: { turn: Turn }) {
           >
             {copied ? <Check size={14} aria-hidden /> : <Copy size={14} aria-hidden />}
           </button>
+          {noteId ? (
+            <button type="button" onClick={() => onShowNote(noteId)} className="rounded-md px-1 py-0.5 text-xs text-accent hover:underline">
+              Saved · Show in Notes
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => void onSaveNote({ ...turn, status: 'done' }).then(setNoteId)}
+              aria-label="Save as note"
+              title="Save as note"
+              className="rounded-md p-1 text-muted hover:text-text"
+            >
+              <NotebookPen size={14} aria-hidden />
+            </button>
+          )}
           <span className="text-xs text-muted">{turn.model}</span>
           </div>
         )}

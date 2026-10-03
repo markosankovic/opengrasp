@@ -16,9 +16,10 @@ Your PDFs never leave your device. OpenGrasp stores only metadata: reading posit
 - **Table of contents:** a panel on the left lists the document's chapters, marks the one you're in, and jumps straight to a heading.
 - **Works offline** and can be installed as an app.
 - **Ask AI** (optional): select a term or passage and choose **Explain** or **Ask**, or type a question about the page. Answers stream into a panel on the right. Uses Google Gemini with your own API key (free in [Google AI Studio](https://aistudio.google.com/apikey)), or a model on your own computer through [Ollama](https://ollama.com), LM Studio or llama.cpp. Either is called directly from your browser; only your question, the selection and the current page are sent. Conversations are saved per document in your browser, and you can delete them. For Ollama on the published site, start it with `OLLAMA_ORIGINS=https://opengrasp.js.org`.
+- **Notes:** the Notes tab next to Ask (`m`) holds Markdown notes for a page or the whole document. Click a note to edit it; `Ctrl+Enter` saves, `Esc` cancels. Any AI answer can be saved as a note with one click.
 - Press **`?`** or the **?** button in the top bar for help and all keyboard shortcuts.
 
-Notes, highlights, find in document and export/import are planned for v1 (see [SPEC.md](SPEC.md)).
+Highlights, find in document and export/import are planned for v1 (see [SPEC.md](SPEC.md)).
 
 ### Keyboard shortcuts
 
@@ -34,6 +35,7 @@ Notes, highlights, find in document and export/import are planned for v1 (see [S
 | `+` / `-` / `0` | Zoom in / out / fit width (also `Ctrl` + wheel) |
 | `t` | Table of contents |
 | `a` | Ask AI about the selection, or open / close the Ask panel |
+| `m` | Notes |
 | `b` | Back to the library |
 | `Esc` | Close the table of contents or help |
 | `?` | Help |

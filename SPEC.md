@@ -42,7 +42,7 @@ OpenGrasp is an open-source, local-first Progressive Web App (PWA) for reading P
 | F3 | Document identification | Compute a stable ID for each opened file so its metadata can be matched when the file is reopened (see §4.2). |
 | F4 | Resume position | Save page, position within the page, and zoom automatically, and restore them when the same document is reopened. |
 | F5 | Recent documents | A library or home view listing previously opened documents, sorted by last opened, with progress shown. The user has to re-select the file to read it, because files aren't stored. |
-| F6 | Notes | Basic notes: a plain-text Markdown `<textarea>` with no preview. A note belongs to a document and optionally to a page. |
+| F6 | Notes | Basic notes: Markdown written in a plain `<textarea>`, shown rendered once saved. A note belongs to a document and optionally to a page. Ask AI answers can be saved as notes (§4.9). |
 | F7 | Highlights | Basic highlights: select text and highlight it in one of four fixed colors (§5.3), with an optional plain-text note. The stored data includes the selected text, the page and the position. |
 | F8 | PWA | Installable app (manifest, standalone display) that works offline through a service worker. |
 | F9 | Hosting | A static build deployed to GitHub Pages by GitHub Actions on every push to `main`. |
@@ -53,7 +53,7 @@ OpenGrasp is an open-source, local-first Progressive Web App (PWA) for reading P
 
 ### 2.2 Later
 
-- **AI exploration, beyond F13**: more providers (Chrome's built-in model, Claude, OpenAI); asking about a highlight or a page range; summarizing; saving answers as notes; turning notes into study material.
+- **AI exploration, beyond F13**: more providers (Chrome's built-in model, Claude, OpenAI); asking about a highlight or a page range; summarizing; turning notes into study material.
 - **A better notes editor:** Markdown live preview, code blocks with syntax highlighting, LaTeX/math rendering.
 - **Highlight refinements:** custom or editable colors, editing a highlight's range, and possibly merging highlight notes and standalone notes into one concept.
 - Search across all notes and highlights.
@@ -204,6 +204,7 @@ interface Note {
   documentId: string;
   pageNumber?: number;     // undefined = document-level note
   content: string;         // markdown
+  source?: { kind: 'ask'; model: string }; // saved from an Ask AI answer (§4.9)
   createdAt: number;
   updatedAt: number;
 }
@@ -215,6 +216,7 @@ interface Conversation {
   turns: Array<{
     question: string;
     quote?: { text: string; pageNumber: number };
+    pageNumber?: number;   // the page asked about; missing in turns saved before it was recorded
     prompt: string;        // the full text sent, page text included, so follow-ups resend the same context
     answer: string;        // markdown
     status: 'done' | 'stopped'; // failed answers aren't saved
@@ -392,7 +394,7 @@ An optional panel for asking a language model about what you're reading, e.g. a 
   - Opening the panel brings back the document's most recent conversation, unless a question was already asked meanwhile (e.g. "Explain" right after opening). Follow-ups work across providers, since the history is plain text.
   - "New conversation" starts a fresh one; the previous one stays saved. The history button lists the document's conversations (first question, date, number of questions); click to reopen, trash to delete one, or "Delete all for this document" with an inline confirm.
   - Removing the document from the library deletes its conversations too. Each answer shows the model that wrote it.
-  - Saving answers as notes comes later.
+- **Save as note:** a button next to Copy saves an answer as a note (`src/ai/note.ts`): the quote as a block quote, the question in bold, then the answer, on the page the question was about (`pageNumber` on the turn; older turns fall back to the "Page n." the prompt starts with). The note's `source` records it came from Ask and which model wrote it. The button then becomes "Saved · Show in Notes", which opens the Notes tab at that note.
 - **Rendering answers:** `src/components/Markdown.tsx` handles paragraphs, headings, lists, quotes, fenced code, inline code, bold, italics and `https` links. It builds React elements and never sets HTML, so model output can't inject markup or scripts. This also protects the API key.
 - **Settings** (gear in the panel): a Gemini / Local model switch; questions move to a provider once it connects, so browsing the other tab changes nothing.
   - Gemini: API key (paste-to-connect: pasting a key-shaped value checks it, saves it and switches to the conversation, no button needed), model (listed from the API, text-chat models only, plain `gemini-<version>-flash` first, since variants may have no free-tier quota), "Remember the key on this device".
@@ -452,16 +454,19 @@ Library                              Reader
   - Selecting a document whose file isn't available prompts for the file and shows its expected name.
   - A trash icon (shown on hover or keyboard focus, always on devices without hover) removes a document. The row turns into an inline confirm (Escape cancels), because the document's position, notes, highlights and AI conversations are deleted. The PDF file is never touched.
 - **Reader top bar:**
-  - Height 40 px or less. Left: the brace mark (back to the library) and the table-of-contents toggle (`PanelLeft`). Center: the title. Right: page `n / total`, zoom, a notes toggle, and help (`CircleHelp`).
+  - Height 40 px or less. Left: the brace mark (back to the library) and the table-of-contents toggle (`PanelLeft`). Center: the title. Right: page `n / total`, zoom, the Ask and Notes toggles (`MessagesSquare`, `NotebookPen`), and help (`CircleHelp`).
   - It hides automatically after a few seconds of scrolling and comes back on mouse movement near the top or on `Esc`.
 - **Table of contents panel:**
   - On the left, toggled from the top bar or with `t`, closed by default; its open/closed state is remembered on wide windows.
   - Entries show their page number; the entry the reader is in is highlighted (its nearest visible parent when collapsed), and its parents are expanded when the panel opens.
   - On narrow windows it overlays the page, and choosing an entry or tapping outside closes it.
-- **Notes panel:**
-  - On the right, resizable, closed by default, and its open/closed state is remembered.
-  - On narrow windows it overlays the page instead of shrinking it.
-- **Selection popover:** a small floating bar above selected text with the highlight colors, a note button and a copy button (later also *Ask AI*).
+- **Right-hand panel: Ask and Notes.** One panel with two tabs in its header; the reader-bar toggles and `a` / `m` open it on their tab, or close it when that tab is showing. Closed by default; the open tab is remembered on wide windows (`opengrasp:side-panel`). On narrow windows it overlays the page instead of shrinking it. Each tab stays mounted once opened, so a conversation or a note being written survives switching tabs. Resizing comes later.
+- **Notes tab** (`src/components/NotesPanel.tsx`):
+  - Grouped: "Whole document" first, then by page, oldest first within a page; a page heading jumps to that page.
+  - Notes show rendered with the answer Markdown renderer (links work). Clicking a note, or its pencil, edits it in a Geist Mono textarea; `Ctrl+Enter` or clicking elsewhere saves, `Esc` cancels. Emptying a note deletes it; an empty new note is discarded.
+  - **+** starts a note on the current page; a chip in the editor switches it between "Page n" and "Whole document".
+  - Delete (trash, on hover or focus, always on devices without hover) asks inline. Notes saved from Ask show "from Ask · model".
+- **Selection popover:** a small floating bar above selected text with the highlight colors, a note button and a copy button and *Explain* / *Ask* for AI (§4.9).
 - **No sidebars by default.** Page thumbnails and the outline (table of contents) are one shortcut away, not shown permanently.
 
 ### 5.3 Color
@@ -524,7 +529,7 @@ All colors are CSS custom properties defined once in Tailwind v4's `@theme`. Com
   - ISC license
 - **Rules:**
   - Icons are 16 px, colored `--color-muted` at rest and `--color-text` on hover or when active.
-  - Icon-only buttons need an `aria-label` and a tooltip that shows the shortcut (e.g. "Notes (N)").
+  - Icon-only buttons need an `aria-label` and a tooltip that shows the shortcut (e.g. "Notes (m)").
 - **Buttons:**
   - Text buttons, with or without an icon, use the `btn` utility (`src/index.css`): 32 px high, 12 px side padding, an 8 px gap to the icon, `rounded-lg`, weight 500. Icon-only buttons in the same row use `btn-icon`, a 32 px square. The reader bar's compact 40 px row keeps its smaller icon buttons.
   - The label goes in a `<span>`, which `btn` trims to cap height and baseline (`text-box: trim-both cap alphabetic`). Geist has more room above its capitals than below the baseline, so an untrimmed label sits about 1 px high. Trimmed, labels are centered within half a pixel, measured at 1× and 2× pixel density. No per-button nudges.
@@ -535,7 +540,7 @@ All colors are CSS custom properties defined once in Tailwind v4's `@theme`. Com
   |---------|--------------|
   | Navigation | `ArrowLeft`, `ChevronLeft`, `ChevronRight` |
   | Open and zoom | `FileUp`, `ZoomIn`, `ZoomOut` |
-  | Notes and highlights | `PanelRight` (notes), `Highlighter`, `StickyNote`, `Copy` |
+  | Notes and highlights | `NotebookPen` (notes, save as note), `Highlighter`, `Copy` |
   | Library and outline | `Search`, `PanelLeft` (outline), `LayoutGrid` (thumbnails) |
   | Settings and actions | `Settings`, `Sun` / `Moon`, `Trash2`, `X` |
 
@@ -566,7 +571,7 @@ All colors are CSS custom properties defined once in Tailwind v4's `@theme`. Com
 | `h` | Highlight the selection |
 | `t` | Toggle table of contents |
 | `a` | Ask AI about the selection, or open / close the Ask panel |
-| `N` (`Shift+n`) | Toggle notes panel |
+| `m` | Toggle the Notes tab of the right-hand panel |
 | `/` | Search (document; later notes) |
 | `Esc` | Close popover or panel; show the top bar |
 | `?` | Help: what the app does, how to use it, and the shortcuts (also the `?` button right of Load PDF in the library header, and at the right end of the reader bar) |

@@ -52,6 +52,8 @@ export interface Note {
   /** Undefined for a document-level note. */
   pageNumber?: number
   content: string
+  /** Set when the note was saved from an Ask AI answer. */
+  source?: { kind: 'ask'; model: string }
   createdAt: number
   updatedAt: number
 }
@@ -60,6 +62,8 @@ export interface Note {
 export interface ConversationTurn {
   question: string
   quote?: { text: string; pageNumber: number }
+  /** The page the question was about. Missing in turns saved before it was recorded. */
+  pageNumber?: number
   /** The full text sent to the model, including page text, so follow-ups resend the same context. */
   prompt: string
   answer: string

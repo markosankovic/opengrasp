@@ -1,6 +1,6 @@
 import { openDB, type IDBPDatabase } from 'idb'
 import { slugify, slugSource } from '../slug'
-import type { Conversation, DocumentMeta, OpenGraspDB } from './schema'
+import type { Conversation, DocumentMeta, Note, OpenGraspDB } from './schema'
 
 // The only module that talks to IndexedDB (SPEC.md §3.1). Components use these functions, never idb directly.
 
@@ -128,6 +128,20 @@ export async function removeDocument(id: string): Promise<void> {
     ...conversationKeys.map((key) => tx.objectStore('conversations').delete(key)),
     tx.done,
   ])
+}
+
+/** A document's notes: document-level ones first, then by page, oldest first within a page. */
+export async function listNotes(documentId: string): Promise<Note[]> {
+  const all = await (await getDB()).getAllFromIndex('notes', 'documentId', documentId)
+  return all.sort((a, b) => (a.pageNumber ?? 0) - (b.pageNumber ?? 0) || a.createdAt - b.createdAt)
+}
+
+export async function putNote(note: Note): Promise<void> {
+  await (await getDB()).put('notes', note)
+}
+
+export async function deleteNote(id: string): Promise<void> {
+  await (await getDB()).delete('notes', id)
 }
 
 /** A document's saved conversations, most recently updated first. */

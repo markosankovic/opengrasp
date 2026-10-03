@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 
 /*
- * A small Markdown renderer for AI answers: paragraphs, headings, lists, block quotes, fenced code, inline code,
+ * A small Markdown renderer for AI answers and notes: paragraphs, headings, lists, block quotes, fenced code, inline code,
  * bold, italics and links. It builds React elements and never sets HTML, so model output can't inject markup or
  * scripts (SPEC.md §4.9). Unfinished syntax while an answer streams in simply shows as text until it closes.
  */
