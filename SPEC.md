@@ -89,7 +89,7 @@ OpenGrasp is an open-source, local-first Progressive Web App (PWA) for reading P
 | Persistence | **IndexedDB** via **idb** | Decided; the comparison is in §3.1. |
 | Icons | **Lucide** (`lucide-react`) | See §5.5. |
 | PWA | **vite-plugin-pwa** (Workbox) | Generates the manifest and service worker. |
-| Hosting | **GitHub Pages** + **GitHub Actions** | `.github/workflows/deploy.yml`: `npm run build` → deploy `dist/`. Vite `base` has to be `/opengrasp/` unless a custom domain is used. |
+| Hosting | **GitHub Pages** + **GitHub Actions** | `.github/workflows/deploy.yml`: `npm run build` → deploy `dist/`. Vite `base` is `/opengrasp/` for builds (unless a custom domain is used). The dev server uses `/`. |
 | License | **MIT** | Already in the repo. |
 
 ### 3.1 Storage library: Dexie.js vs idb
@@ -134,7 +134,7 @@ Native IndexedDB handles all of these queries. Dexie's real advantages are the r
 3. It computes the document ID (§4.2) and looks up metadata in IndexedDB.
 4. PDF.js renders the document. If metadata exists, the app restores the page, zoom and scroll position, and loads the notes and highlights.
 5. While the user reads, the app saves progress with a debounce (and on `visibilitychange` / `pagehide`).
-6. The PDF stays in memory only and is discarded when it is closed.
+6. The PDF stays in memory only. The last opened document is kept while you browse the library, so the browser's forward button returns to it instantly. It's discarded when another document replaces it or the tab closes.
 
 ### 4.2 Document identification
 
@@ -168,6 +168,7 @@ This is a normalized design rather than one nested document per PDF. It makes it
 // Store: documents   (primary key: id)
 interface DocumentMeta {
   id: string;              // SHA-256 of file content (hex)
+  slug: string;            // unique, URL-friendly name for /read/<slug> (§4.8); unique index
   fingerprints?: string[]; // PDF.js fingerprints
   fileName: string;
   fileSize: number;
@@ -293,6 +294,7 @@ There is no sync in v1. Moving data between devices or browsers, and backing it 
   - Zooming applies a CSS `transform: scale()` immediately, which is instant but slightly blurry.
   - About 150 ms after the last zoom input, the visible pages re-render sharply at the new scale.
   - The point under the cursor stays fixed (`Ctrl` + wheel / trackpad pinch).
+  - **Fit width** fits the *first* page's width, not the widest page's. Page sizes load in the background, so this is stable from the first frame, and one landscape fold-out page doesn't shrink the whole book (it scrolls horizontally instead).
 - **Text layers:** built only for mounted pages, and after the canvas has drawn.
 
 **Coordinates:**
@@ -313,6 +315,33 @@ There is no sync in v1. Moving data between devices or browsers, and backing it 
 - `/` opens a small find bar.
 - Each page's text comes from `page.getTextContent()`, extracted lazily and kept in memory. This uses the same text-extraction module as §4.5.
 - Matches are drawn in the `HighlightLayer` style, and `Enter` / `Shift+Enter` jump to the next / previous match.
+
+### 4.8 Routing
+
+The browser's back button returns from a document to the library instead of leaving the app, and every document has a readable URL.
+
+| Path | View |
+|------|------|
+| `/opengrasp/` | Library |
+| `/opengrasp/read/<slug>` | Reader, e.g. `/read/the-cpp-programming-language-4th-edition` |
+
+- **Implementation:** a few lines on the History API (`src/router.ts`, `useSyncExternalStore`). There are only two routes, so there's no router library.
+- **Slugs** (`src/slug.ts`) come from the PDF title, or the file name without `.pdf`:
+  - lowercase and dashed
+  - accents stripped, and letters like `đ` → `dj` and `ß` → `ss` transliterated
+  - `C++` → `cpp` and `C#` → `csharp`
+  - `&` → `and`
+  - at most 80 characters, cut at a dash
+- **Slug storage:** each slug is stored on the document (`slug`, unique index) and stays stable. If two different documents would get the same slug, the later one gets `-2`, `-3`, and so on. DB v2 adds the index and gives existing documents a slug.
+- **History:**
+  - Opening a document from the library *pushes* an entry marked `fromLibrary`, so browser back returns to the list and forward returns to the document.
+  - The reader's own back button calls `history.back()` for such entries. If the reader was loaded directly (a link or a reload), it *replaces* the entry with the library, so it never leaves the app.
+- **Loading `/read/<slug>` without the document in memory** (reload, link, or forward after the PDF was released):
+  - If a stored file handle still has read permission, the document reopens silently at the saved position.
+  - Otherwise a "Continue reading" screen shows the title, the file name and the saved page. One click reopens it (asking for permission, or opening the picker). File access always needs a user gesture.
+  - If the slug is unknown, it shows "This document isn't in your library." with a link back.
+- **Tab title:** while reading, it is `<title> · OpenGrasp`.
+- **GitHub Pages:** it has no SPA fallback, so the build copies `index.html` to `404.html`, which Pages serves for unknown paths. Once the service worker is installed, its navigation fallback serves every route, including offline. `404.html` is excluded from the precache.
 
 ## 5. Design guide
 

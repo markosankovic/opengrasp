@@ -101,9 +101,21 @@ export default function PdfPage({ pdf, pageNumber, scale, top, left, width, heig
       const textLayer = new TextLayer({ textContentSource: page.streamTextContent(), container, viewport })
       state.textLayer = textLayer
       state.textContainer = container
-      signal.addEventListener('abort', () => textLayer.cancel())
-      await textLayer.render()
-      if (!signal.aborted) state.unregisterText = registerTextLayer(container)
+      const onAbortText = () => textLayer.cancel()
+      signal.addEventListener('abort', onAbortText)
+      try {
+        await textLayer.render()
+      } catch (error) {
+        // A cancelled layer can't be updated later, so drop it and let the next render build a fresh one.
+        container.remove()
+        state.textLayer = undefined
+        state.textContainer = undefined
+        if (signal.aborted) return
+        throw error
+      } finally {
+        signal.removeEventListener('abort', onAbortText)
+      }
+      state.unregisterText = registerTextLayer(container)
     }
 
     const timer = setTimeout(() => queue.schedule(pageNumber, job), state.canvas ? ZOOM_SETTLE_MS : 0)

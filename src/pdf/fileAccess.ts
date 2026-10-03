@@ -9,7 +9,7 @@ export interface PickedFile {
 export const supportsFileHandles = typeof window !== 'undefined' && 'showOpenFilePicker' in window
 
 /** Opens the system file picker. Returns null if the user cancels. Only call this where supportsFileHandles is true. */
-export async function pickPdfWithHandle(): Promise<PickedFile | null> {
+async function pickPdfWithHandle(): Promise<PickedFile | null> {
   try {
     const [handle] = await window.showOpenFilePicker!({
       id: 'opengrasp-pdf',
@@ -20,6 +20,28 @@ export async function pickPdfWithHandle(): Promise<PickedFile | null> {
     if (error instanceof DOMException && error.name === 'AbortError') return null
     throw error
   }
+}
+
+/**
+ * Opens a file picker for one PDF: the File System Access picker where supported (so a handle can be kept),
+ * otherwise a temporary <input type="file">. Returns null if the user cancels.
+ */
+export async function pickPdf(): Promise<PickedFile | null> {
+  if (supportsFileHandles) return pickPdfWithHandle()
+  return new Promise((resolve) => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'application/pdf,.pdf'
+    input.hidden = true
+    const done = (picked: PickedFile | null) => {
+      input.remove()
+      resolve(picked)
+    }
+    input.addEventListener('change', () => done(input.files?.[0] ? { file: input.files[0] } : null), { once: true })
+    input.addEventListener('cancel', () => done(null), { once: true })
+    document.body.append(input)
+    input.click()
+  })
 }
 
 /**

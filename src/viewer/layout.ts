@@ -53,9 +53,10 @@ export function stepZoom(current: number, direction: 1 | -1): number {
 /** CSS scale for a zoom setting, given page sizes and the viewport (clientWidth/clientHeight). */
 export function resolveScale(zoom: Zoom, sizes: PageSize[], viewport: { w: number; h: number }): number {
   if (typeof zoom === 'number') return clampZoom(zoom) * PDF_TO_CSS
+  // Fit to the first page, not the widest: sizes load in the background, so this is stable from the first frame,
+  // and a single landscape fold-out page doesn't shrink the whole book (it scrolls horizontally instead).
   const first = sizes[0] ?? { w: 612, h: 792 }
-  const maxWidth = Math.max(...sizes.map((s) => s.w))
-  const fitWidth = (viewport.w - 2 * PADDING) / maxWidth
+  const fitWidth = (viewport.w - 2 * PADDING) / first.w
   const scale = zoom === 'page-width' ? fitWidth : Math.min(fitWidth, (viewport.h - 2 * PADDING) / first.h)
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, scale / PDF_TO_CSS)) * PDF_TO_CSS
 }

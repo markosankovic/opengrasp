@@ -8,6 +8,8 @@ export type HighlightColor = 'yellow' | 'green' | 'blue' | 'pink'
 export interface DocumentMeta {
   /** SHA-256 of the full file, hex-encoded (SPEC.md §4.2). */
   id: string
+  /** Unique, URL-friendly name used in the reader route: /read/<slug> (SPEC.md §4.8). */
+  slug: string
   fingerprints?: string[]
   fileName: string
   fileSize: number
@@ -63,7 +65,7 @@ export interface OpenGraspDB extends DBSchema {
   documents: {
     key: string
     value: DocumentMeta
-    indexes: { lastOpenedAt: number }
+    indexes: { lastOpenedAt: number; slug: string }
   }
   highlights: {
     key: string

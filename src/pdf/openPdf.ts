@@ -1,7 +1,8 @@
 import type { PDFDocumentProxy } from 'pdfjs-dist'
-import { getDocument, putDocument, putFileHandle } from '../db'
+import { getDocument, putDocument, putFileHandle, uniqueSlug } from '../db'
 import type { DocumentMeta } from '../db/schema'
 import type { PickedFile } from './fileAccess'
+import { slugify, slugSource } from '../slug'
 import { sha256Hex } from './hash'
 import { loadPdfjs } from './pdfjs'
 
@@ -29,6 +30,7 @@ export async function openPdf({ file, handle }: PickedFile): Promise<OpenedPdf> 
     ? { ...existing, fileName: file.name, lastOpenedAt: now }
     : {
         id,
+        slug: await uniqueSlug(slugify(slugSource({ title, fileName: file.name })), id),
         fingerprints: pdf.fingerprints.filter((f): f is string => f !== null),
         fileName: file.name,
         fileSize: file.size,

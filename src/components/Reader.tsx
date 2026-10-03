@@ -14,7 +14,14 @@ function isEditable(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))
 }
 
-export default function Reader({ opened, onClose }: { opened: OpenedPdf; onClose: () => void }) {
+interface Props {
+  opened: OpenedPdf
+  onClose: () => void
+  /** Keeps the in-memory copy of the progress current, so returning via browser "forward" resumes correctly. */
+  onProgressSaved: (id: string, progress: DocumentMeta['progress']) => void
+}
+
+export default function Reader({ opened, onClose, onProgressSaved }: Props) {
   const { meta, pdf } = opened
   const viewer = useRef<ViewerHandle>(null)
   const pageInput = useRef<HTMLInputElement>(null)
@@ -26,9 +33,12 @@ export default function Reader({ opened, onClose }: { opened: OpenedPdf; onClose
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const flush = useCallback(() => {
     clearTimeout(timer.current)
-    if (pending.current) void saveProgress(meta.id, pending.current)
+    if (pending.current) {
+      void saveProgress(meta.id, pending.current)
+      onProgressSaved(meta.id, pending.current)
+    }
     pending.current = null
-  }, [meta.id])
+  }, [meta.id, onProgressSaved])
 
   const onStateChange = useCallback(
     (state: ViewerState) => {
@@ -55,6 +65,13 @@ export default function Reader({ opened, onClose }: { opened: OpenedPdf; onClose
   }, [flush])
 
   useEffect(() => viewer.current?.focus(), [])
+
+  useEffect(() => {
+    document.title = `${meta.title ?? meta.fileName} · OpenGrasp`
+    return () => {
+      document.title = 'OpenGrasp'
+    }
+  }, [meta.title, meta.fileName])
 
   // Keyboard shortcuts (SPEC.md §5.7)
   useEffect(() => {

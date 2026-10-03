@@ -1,16 +1,10 @@
 import { FileUp, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { deleteFileHandle, getFileHandle, listRecentDocuments, removeDocument } from '../db'
+import { listRecentDocuments, removeDocument } from '../db'
 import type { DocumentMeta } from '../db/schema'
-import {
-  fileFromHandle,
-  FileUnavailableError,
-  handleFromDrop,
-  pickPdfWithHandle,
-  supportsFileHandles,
-  type PickedFile,
-} from '../pdf/fileAccess'
+import { handleFromDrop, pickPdf, type PickedFile } from '../pdf/fileAccess'
 import { openPdf, type OpenedPdf } from '../pdf/openPdf'
+import { reopenInteractive } from '../pdf/reopen'
 import Logo from './Logo'
 
 const relativeTime = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
@@ -32,10 +26,11 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
   const [error, setError] = useState<string | null>(null)
   const [confirmingRemove, setConfirmingRemove] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    void listRecentDocuments().then(setRecent)
+    listRecentDocuments()
+      .then(setRecent)
+      .catch((e: unknown) => setError(`Could not load the library: ${e instanceof Error ? e.message : String(e)}`))
   }, [])
 
   async function open(picked: PickedFile | null | undefined) {
@@ -54,12 +49,8 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
   }
 
   async function pick() {
-    if (!supportsFileHandles) {
-      inputRef.current?.click()
-      return
-    }
     try {
-      await open(await pickPdfWithHandle())
+      await open(await pickPdf())
     } catch (e) {
       setError(`Could not open the file picker: ${e instanceof Error ? e.message : String(e)}`)
     }
@@ -67,22 +58,13 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
 
   /** Reopens a library document from its stored file handle, or asks for the file if there is none. */
   async function reopen(doc: DocumentMeta) {
-    const handle = supportsFileHandles ? await getFileHandle(doc.id) : undefined
-    if (handle) {
-      try {
-        await open({ file: await fileFromHandle(handle), handle })
-        return
-      } catch (e) {
-        if (!(e instanceof FileUnavailableError)) throw e
-        if (e.reason === 'denied') {
-          setError(`${e.message} Click ${doc.fileName} again to retry.`)
-          return
-        }
-        await deleteFileHandle(doc.id)
-        setError(`${e.message} Select ${doc.fileName} again.`)
-      }
+    try {
+      const { picked, message } = await reopenInteractive(doc)
+      setError(message ?? null)
+      await open(picked)
+    } catch (e) {
+      setError(`Could not open ${doc.fileName}: ${e instanceof Error ? e.message : String(e)}`)
     }
-    await pick()
   }
 
   async function remove(doc: DocumentMeta) {
@@ -140,17 +122,6 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
           {/* Browsers snap the baseline up to a whole pixel here; the 0.5px nudge was measured to center it exactly. */}
           <span className="text-trim relative top-[0.5px]">Load PDF</span>
         </button>
-        <input
-          ref={inputRef}
-          type="file"
-          accept="application/pdf,.pdf"
-          hidden
-          onChange={(e) => {
-            const file = e.target.files?.[0]
-            if (file) void open({ file })
-            e.target.value = ''
-          }}
-        />
       </header>
 
       {error && <p className="py-2 text-danger">{error}</p>}
