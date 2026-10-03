@@ -198,7 +198,7 @@ interface Highlight {
   updatedAt: number;
 }
 
-// Store: notes  (primary key: id; indexes: documentId, [documentId+pageNumber])
+// Store: notes  (primary key: id; index: documentId)
 interface Note {
   id: string;              // uuid
   documentId: string;
