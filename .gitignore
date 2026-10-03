@@ -150,3 +150,6 @@ vite.config.ts.timestamp-*
 
 # Brainstorm export (source for SPEC.md)
 Naming Ideas for AI PDF PWA - Google Gemini.pdf
+
+# vite-plugin-pwa dev service worker
+dev-dist

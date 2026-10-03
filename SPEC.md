@@ -82,6 +82,7 @@ OpenGrasp is an open-source, local-first Progressive Web App (PWA) for reading P
 | Concern | Choice | Notes |
 |---------|--------|-------|
 | Language | **TypeScript** (strict) | Decided. `strict: true`, no `any` in the data layer. |
+| Runtime (tooling) | **Node.js ≥ 22.13** | `.nvmrc` pins 22. This is required by `pdfjs-dist` 6. |
 | Build tool | **Vite** | Fast HMR; static output. |
 | UI | **React** + **Tailwind CSS** (v4) | Design tokens are defined as CSS variables in Tailwind's `@theme` (see §5.3). |
 | PDF engine | **PDF.js** (`pdfjs-dist`) | Bundle the worker with Vite, matched to the installed version, so parsing runs off the main thread. Load it lazily, only when a document is opened. |
