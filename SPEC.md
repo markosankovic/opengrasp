@@ -360,7 +360,7 @@ An optional panel for asking a language model about what you're reading, e.g. a 
   - Ollama allows only localhost origins by default, so on the published site it must be started with `OLLAMA_ORIGINS=<the app's origin>`. A refused origin and a stopped server look the same to `fetch()`, so the error says both and the settings show the exact command. Chrome may ask for local-network permission.
 - **Asking:**
   - Selecting text in the PDF shows a popover with **Explain** (asks at once) and **Ask** (attaches the selection and focuses the input).
-  - `a` asks about the current selection, or opens and closes the panel; the ✨ button in the reader bar does the same.
+  - `a` asks about the current selection, or opens and closes the panel; the Ask button (speech bubbles) in the reader bar does the same.
   - Typing a question without a selection asks about the current page.
   - Follow-ups resend the earlier turns, so the model keeps the context.
 - **Context sent** (`src/ai/prompt.ts`):

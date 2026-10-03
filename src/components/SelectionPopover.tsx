@@ -1,4 +1,4 @@
-import { MessageSquare, Sparkles } from 'lucide-react'
+import { Lightbulb, MessageSquare } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { Quote } from '../ai/types'
 import { pdfSelection } from '../viewer/selection'
@@ -74,7 +74,7 @@ export default function SelectionPopover({ onExplain, onAsk }: Props) {
         title="Explain the selection"
         className="btn h-7 gap-1.5 px-2 text-xs text-text hover:bg-surface"
       >
-        <Sparkles size={14} className="text-accent" aria-hidden />
+        <Lightbulb size={14} className="text-accent" aria-hidden />
         <span>Explain</span>
       </button>
       <button

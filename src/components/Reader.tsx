@@ -1,4 +1,4 @@
-import { PanelLeft, Sparkles, ZoomIn, ZoomOut } from 'lucide-react'
+import { MessagesSquare, PanelLeft, ZoomIn, ZoomOut } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { saveProgress } from '../db'
 import type { DocumentMeta } from '../db/schema'
@@ -257,7 +257,7 @@ export default function Reader({ opened, onClose, onProgressSaved }: Props) {
               title="Ask AI (a)"
               className={`${button} ${askOpen ? 'bg-surface text-text' : ''}`}
             >
-              <Sparkles size={16} aria-hidden />
+              <MessagesSquare size={16} aria-hidden />
             </button>
             <HelpButton className="rounded-md p-1.5 text-muted hover:bg-surface hover:text-text" />
           </div>
