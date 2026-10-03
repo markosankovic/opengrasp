@@ -18,6 +18,7 @@ import {
 } from './layout'
 import PdfPage from './PdfPage'
 import { RenderQueue } from './renderQueue'
+import { usePan } from './usePan'
 
 /** Load page sizes in batches after the first page, so huge documents don't flood the worker. */
 const SIZE_BATCH = 50
@@ -177,13 +178,16 @@ export default function Viewer({ pdf, initialProgress, onStateChange, ref }: Pro
     focus: () => containerRef.current?.focus({ preventScroll: true }),
   }))
 
-  // Page sizes: page 1 first so the layout can appear immediately, the rest in the background.
+  // Page sizes: page 1 and a middle page first so the layout can appear immediately, the rest in the background.
+  // Unknown pages start at the middle page's size, which is more likely a body page than page 1 (often a cover).
   useEffect(() => {
     let cancelled = false
     void (async () => {
-      const first = await pageSize(pdf, 1)
+      const middle = Math.ceil(pdf.numPages / 2)
+      const [first, sample] = await Promise.all([pageSize(pdf, 1), pageSize(pdf, middle)])
       if (cancelled) return
-      const all: PageSize[] = Array.from({ length: pdf.numPages }, () => first)
+      const all: PageSize[] = Array.from({ length: pdf.numPages }, () => sample)
+      all[0] = first
       latest.current.sizes = all
       setSizes(all)
       let differs = false
@@ -193,7 +197,7 @@ export default function Viewer({ pdf, initialProgress, onStateChange, ref }: Pro
         if (cancelled) return
         batch.forEach((size, k) => {
           all[start - 1 + k] = size
-          differs ||= size.w !== first.w || size.h !== first.h
+          differs ||= size.w !== sample.w || size.h !== sample.h
         })
       }
       if (differs) {
@@ -223,6 +227,8 @@ export default function Viewer({ pdf, initialProgress, onStateChange, ref }: Pro
     return () => observer.disconnect()
      
   }, [])
+
+  usePan(containerRef)
 
   // Ctrl/⌘ + wheel (and trackpad pinch, which browsers report the same way) zooms around the cursor.
   useEffect(() => {
@@ -266,7 +272,7 @@ export default function Viewer({ pdf, initialProgress, onStateChange, ref }: Pro
       ref={containerRef}
       tabIndex={-1}
       onScroll={onScroll}
-      className="relative min-h-0 flex-1 overflow-auto bg-reader-bg outline-none [scrollbar-gutter:stable]"
+      className="relative min-h-0 flex-1 overflow-auto bg-reader-bg outline-none [scrollbar-gutter:stable] data-pan:select-none data-[pan=active]:cursor-grabbing data-[pan=active]:**:cursor-grabbing! data-[pan=ready]:cursor-grab data-[pan=ready]:**:cursor-grab!"
     >
       {layout && (
         <div className="relative" style={{ width: layout.totalWidth, height: layout.totalHeight }}>

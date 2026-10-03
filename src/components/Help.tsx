@@ -11,6 +11,7 @@ const LIBRARY_SHORTCUTS: [keys: string[], action: string][] = [
 
 const READER_SHORTCUTS: [keys: string[], action: string][] = [
   [['j', 'k'], 'Scroll down / up (also ↓ ↑)'],
+  [['Space'], 'Scroll a screen (Shift+Space back); hold and drag to pan'],
   [['n', 'p'], 'Next / previous page (also → ←, PgDn PgUp)'],
   [['Home', 'End'], 'First / last page'],
   [['g'], 'Go to page'],
@@ -130,6 +131,10 @@ export default function HelpButton({
                 <span className="font-medium">Your PDFs never leave your device.</span> Only the reading position is
                 stored, in this browser. Because the file itself isn't stored, the browser may ask you to pick it again
                 when you reopen it.
+              </li>
+              <li>
+                <span className="font-medium">Pan a zoomed-in page</span> by holding Space and dragging, dragging with
+                the middle mouse button, or dragging the gray area around the pages.
               </li>
               <li>
                 <span className="font-medium">Table of contents</span>: the panel on the left lists the document's

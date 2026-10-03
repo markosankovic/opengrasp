@@ -8,7 +8,7 @@ interface Props {
   ref?: Ref<HTMLInputElement>
 }
 
-/** "n / total" in the top bar; editable to jump to a page (shortcut: g). */
+/** "n / total (p%)" in the top bar; editable to jump to a page (shortcut: g). */
 export default function PageInput({ page, pageCount, onSubmit, onCancel, ref }: Props) {
   const [draft, setDraft] = useState<string | null>(null)
 
@@ -39,6 +39,8 @@ export default function PageInput({ page, pageCount, onSubmit, onCancel, ref }: 
         style={{ width: `${String(pageCount).length + 1.5}ch` }}
       />
       <span>/ {pageCount}</span>
+      {/* Rounded like the library's progress, so both show the same number. */}
+      <span className="ml-1 text-xs">({Math.round((page / pageCount) * 100)}%)</span>
     </label>
   )
 }

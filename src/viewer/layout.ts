@@ -50,14 +50,24 @@ export function stepZoom(current: number, direction: 1 | -1): number {
   return next ?? current
 }
 
+/**
+ * The page the fit zooms size to: the one with the median width. A book's cover or a fold-out is often a different
+ * size from the body pages, and fitting to it would zoom the whole book wrong; the median ignores such outliers.
+ */
+export function typicalPage(sizes: PageSize[]): PageSize {
+  if (sizes.length === 0) return { w: 612, h: 792 }
+  const byWidth = [...sizes].sort((a, b) => a.w - b.w)
+  return byWidth[byWidth.length >> 1]!
+}
+
 /** CSS scale for a zoom setting, given page sizes and the viewport (clientWidth/clientHeight). */
 export function resolveScale(zoom: Zoom, sizes: PageSize[], viewport: { w: number; h: number }): number {
   if (typeof zoom === 'number') return clampZoom(zoom) * PDF_TO_CSS
-  // Fit to the first page, not the widest: sizes load in the background, so this is stable from the first frame,
-  // and a single landscape fold-out page doesn't shrink the whole book (it scrolls horizontally instead).
-  const first = sizes[0] ?? { w: 612, h: 792 }
-  const fitWidth = (viewport.w - 2 * PADDING) / first.w
-  const scale = zoom === 'page-width' ? fitWidth : Math.min(fitWidth, (viewport.h - 2 * PADDING) / first.h)
+  // Fit to the typical page, not the widest: a single landscape fold-out page doesn't shrink the whole book (it
+  // scrolls horizontally instead), and a small cover doesn't blow it up.
+  const page = typicalPage(sizes)
+  const fitWidth = (viewport.w - 2 * PADDING) / page.w
+  const scale = zoom === 'page-width' ? fitWidth : Math.min(fitWidth, (viewport.h - 2 * PADDING) / page.h)
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, scale / PDF_TO_CSS)) * PDF_TO_CSS
 }
 

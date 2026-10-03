@@ -294,7 +294,8 @@ There is no sync in v1. Moving data between devices or browsers, and backing it 
   - Zooming applies a CSS `transform: scale()` immediately, which is instant but slightly blurry.
   - About 150 ms after the last zoom input, the visible pages re-render sharply at the new scale.
   - The point under the cursor stays fixed (`Ctrl` + wheel / trackpad pinch).
-  - **Fit width** fits the *first* page's width, not the widest page's. Page sizes load in the background, so this is stable from the first frame, and one landscape fold-out page doesn't shrink the whole book (it scrolls horizontally instead).
+  - **Fit width** (and fit page) fits the *typical* page: the one with the median width. A small cover doesn't blow the book up (e.g. *A Tour of C++*: a 252 pt cover before 472 pt pages), and one landscape fold-out page doesn't shrink it (it scrolls horizontally instead). Pages of another size show at the same scale, centered.
+  - Page sizes load in the background. Until they have, pages are assumed to be the size of the middle page (page 1 is often a cover), so the first frame is usually already right.
 - **Text layers:** built only for mounted pages, and after the canvas has drawn.
 
 **Coordinates:**
@@ -305,6 +306,11 @@ There is no sync in v1. Moving data between devices or browsers, and backing it 
 **Progress and restoring:**
 - The app tracks the page at the top of the viewport (`pageNumber`) and how far down it the top edge is (`pageOffset`, 0–1). It doesn't use pixel offsets, so the position survives zoom changes and different screen sizes.
 - On open, the app sets the scroll position from `pageNumber` and `pageOffset` *before* rendering, so the target page is the first one drawn and no other page flashes on screen first.
+
+**Panning:**
+- Hold `Space` and drag, drag with the middle mouse button, or drag the gray area around the pages. This is what moves a zoomed-in page sideways without a trackpad.
+- A plain left drag on a page keeps selecting text. A quick `Space` tap still scrolls a screen, like the browser's own `Space`.
+- The cursor shows a grab hand while `Space` is held and while dragging.
 
 **Links and outline (MVP):**
 - Internal links (e.g. table-of-contents entries and cross-references) scroll to their target.
@@ -493,6 +499,7 @@ All colors are CSS custom properties defined once in Tailwind v4's `@theme`. Com
 | `1`–`9` | Library: open the nth document in the list |
 | `b` | Back to the library |
 | `j` / `k`, `↓` / `↑` | Scroll |
+| `Space` / `Shift+Space` | Scroll down / up a screen; hold `Space` and drag to pan |
 | `n` / `p`, `→` / `←`, `PgDn` / `PgUp` | Next / previous page |
 | `g` | Go to page |
 | `+` / `-` / `0` | Zoom in / out / fit width |

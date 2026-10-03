@@ -192,7 +192,7 @@ export default function Reader({ opened, onClose, onProgressSaved }: Props) {
           {meta.title ?? meta.fileName}
         </span>
 
-        <div className="flex items-center justify-end">
+        <div className="flex items-center justify-end gap-4">
           <PageInput
             ref={pageInput}
             page={currentPage}
@@ -204,7 +204,7 @@ export default function Reader({ opened, onClose, onProgressSaved }: Props) {
             onCancel={() => viewer.current?.focus()}
           />
 
-          <div className="ml-2 flex items-center">
+          <div className="flex items-center">
             <button type="button" onClick={() => viewer.current?.zoomOut()} aria-label="Zoom out" title="Zoom out (-)" className={button}>
               <ZoomOut size={16} aria-hidden />
             </button>
@@ -220,7 +220,7 @@ export default function Reader({ opened, onClose, onProgressSaved }: Props) {
               <ZoomIn size={16} aria-hidden />
             </button>
           </div>
-          <HelpButton className="ml-1 rounded-md p-1.5 text-muted hover:bg-surface hover:text-text" />
+          <HelpButton className="rounded-md p-1.5 text-muted hover:bg-surface hover:text-text" />
         </div>
       </header>
 
