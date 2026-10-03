@@ -18,6 +18,7 @@ const READER_SHORTCUTS: [keys: string[], action: string][] = [
   [['+', '-'], 'Zoom in / out (also Ctrl + wheel)'],
   [['0'], 'Fit width'],
   [['t'], 'Table of contents'],
+  [['a'], 'Ask AI about the selection, or open the Ask panel'],
   [['b'], 'Back to the library'],
   [['Esc'], 'Close the table of contents'],
   [['?'], 'This help'],
@@ -139,6 +140,11 @@ export default function HelpButton({
               <li>
                 <span className="font-medium">Table of contents</span>: the panel on the left lists the document's
                 chapters and marks the one you're in.
+              </li>
+              <li>
+                <span className="font-medium">Ask AI</span> (optional): select a term or passage and choose Explain or
+                Ask, or type a question in the panel on the right. It uses Google Gemini with your own API key; only
+                your question, the selection and the current page are sent.
               </li>
               <li>
                 <span className="font-medium">Works offline</span> and can be installed as an app from the browser's

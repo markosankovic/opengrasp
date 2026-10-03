@@ -49,10 +49,11 @@ OpenGrasp is an open-source, local-first Progressive Web App (PWA) for reading P
 | F10 | Export / import | Export all metadata to a JSON file and import it on another device or browser. This is the v1 answer for backups and for moving between devices (see §4.6). |
 | F11 | Links and outline | Internal and external links in the PDF work, and the table of contents opens in a panel on the left (§4.7). |
 | F12 | Find in document | A find bar that jumps between matches (§4.7). |
+| F13 | Ask AI | Optional. Select text and ask about it, or type a question about the page; answers stream into a panel on the right. Gemini first, with the user's own key; local models (Ollama) next (§4.9). |
 
 ### 2.2 Later
 
-- **AI exploration**: ask questions about a highlight, a page or a page range; explain code snippets; summarize; turn notes into study material. Users bring their own provider: a local LLM (e.g. Ollama) or a cloud API key.
+- **AI exploration, beyond F13**: more providers (Ollama and other OpenAI-compatible local servers, Chrome's built-in model, Claude, OpenAI); asking about a highlight or a page range; summarizing; saving answers as notes; turning notes into study material.
 - **A better notes editor:** Markdown live preview, code blocks with syntax highlighting, LaTeX/math rendering.
 - **Highlight refinements:** custom or editable colors, editing a highlight's range, and possibly merging highlight notes and standalone notes into one concept.
 - Search across all notes and highlights.
@@ -218,7 +219,7 @@ Highlight rects are stored in PDF page coordinates, not screen pixels, so they r
 
 ### 4.5 AI-readiness (design constraints for v1)
 
-v1 has no AI features, but it should keep the following true:
+The AI features (§4.9) build on the following, which hold for the rest of the app too:
 
 - Every highlight and note carries its `pageNumber`, and highlights carry their `selectedText`, so a prompt can be assembled from a snippet plus the user's note without ingesting the whole book.
 - Text extraction (`page.getTextContent()`) sits behind a small module, so it can later supply page or page-range context to an LLM.
@@ -348,6 +349,28 @@ The browser's back button returns from a document to the library instead of leav
   - If the slug is unknown, it shows "This document isn't in your library." with a link back.
 - **Tab title:** while reading, it is `<title> · OpenGrasp`.
 - **GitHub Pages:** it has no SPA fallback, so the build copies `index.html` to `404.html`, which Pages serves for unknown paths. Once the service worker is installed, its navigation fallback serves every route, including offline. `404.html` is excluded from the precache.
+
+### 4.9 Ask AI
+
+An optional panel for asking a language model about what you're reading, e.g. a term the PDF uses but doesn't explain. **Gemini first**; the design keeps other providers a small adapter away.
+
+- **Direct from the browser.** `src/ai/gemini.ts` calls the Gemini API (`streamGenerateContent?alt=sse`) with the user's own API key in the `x-goog-api-key` header, and streams the answer. There is no OpenGrasp server in between.
+- **Asking:**
+  - Selecting text in the PDF shows a popover with **Explain** (asks at once) and **Ask** (attaches the selection and focuses the input).
+  - `a` asks about the current selection, or opens and closes the panel; the ✨ button in the reader bar does the same.
+  - Typing a question without a selection asks about the current page.
+  - Follow-ups resend the earlier turns, so the model keeps the context.
+- **Context sent** (`src/ai/prompt.ts`):
+  - System instruction: the document title, page count and current section (from the outline), plus guidance: explain in the document's context and terminology, be concise, use Markdown, say when unsure.
+  - Per question: the page number, the selected text, and either the whole page text (default; "Send the whole current page") or the passage around the selection (±600 characters, widened to whole lines).
+  - Page text comes from `src/pdf/text.ts`, the shared, cached text-extraction module (§4.5).
+- **Panel:** on the right, 380 px, overlaying the page on narrow windows. Its open state is remembered like the outline's. The conversation lives in memory while the document is open; persisting it, and saving answers as notes, comes later.
+- **Rendering answers:** `src/components/Markdown.tsx` handles paragraphs, headings, lists, quotes, fenced code, inline code, bold, italics and `https` links. It builds React elements and never sets HTML, so model output can't inject markup or scripts. This also protects the API key.
+- **Settings** (gear in the panel): API key, model (listed from the API, text-chat models only, "flash" models first), "Send the whole current page", "Remember the key on this device".
+  - The key is kept in `localStorage` when remembered, otherwise in `sessionStorage` (gone when the tab closes). Settings are per-browser and aren't exported.
+  - Known limitation: every GitHub Pages project of the same user shares the origin `markosankovic.github.io`, so another project there could read a remembered key. A custom domain (§1.1) removes this.
+- **Privacy:** the panel and the settings say what is sent and where ("Gemini · model", "sent to Google"). The PDF file itself is never uploaded. Nothing is sent until the user asks.
+- **Next:** an OpenAI-compatible adapter for Ollama, LM Studio and llama.cpp (`OLLAMA_ORIGINS` must allow the app's origin, and Chrome asks for local-network permission), and Chrome's built-in model.
 
 ## 5. Design guide
 
@@ -510,6 +533,7 @@ All colors are CSS custom properties defined once in Tailwind v4's `@theme`. Com
 | `+` / `-` / `0` | Zoom in / out / fit width |
 | `h` | Highlight the selection |
 | `t` | Toggle table of contents |
+| `a` | Ask AI about the selection, or open / close the Ask panel |
 | `N` (`Shift+n`) | Toggle notes panel |
 | `/` | Search (document; later notes) |
 | `Esc` | Close popover or panel; show the top bar |

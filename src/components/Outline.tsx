@@ -1,6 +1,6 @@
 import { ChevronRight } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { OutlineItem } from '../pdf/outline'
+import { sectionPath, type OutlineItem } from '../pdf/outline'
 
 interface Props {
   /** null while the outline is loading. */
@@ -9,23 +9,9 @@ interface Props {
   onSelect: (item: OutlineItem) => void
 }
 
-/** The entry the reader is in: the last one, in document order, that starts on or before the current page. */
-function findCurrent(items: OutlineItem[], page: number): OutlineItem[] {
-  let best: OutlineItem[] = []
-  const walk = (list: OutlineItem[], path: OutlineItem[]) => {
-    for (const item of list) {
-      const here = [...path, item]
-      if (item.page !== null && item.page <= page) best = here
-      walk(item.children, here)
-    }
-  }
-  walk(items, [])
-  return best
-}
-
 /** Table of contents panel on the left of the reader (shortcut: t). */
 export default function Outline({ items, currentPage, onSelect }: Props) {
-  const currentPath = useMemo(() => (items ? findCurrent(items, currentPage) : []), [items, currentPage])
+  const currentPath = useMemo(() => (items ? sectionPath(items, currentPage) : []), [items, currentPage])
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   // Inside a collapsed entry, its nearest visible ancestor is marked instead.
   const collapsedAt = currentPath.findIndex((item) => !expanded.has(item.id))

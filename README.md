@@ -15,6 +15,7 @@ Your PDFs never leave your device. OpenGrasp stores only metadata: reading posit
 - **Pan a zoomed-in page** by holding `Space` and dragging, dragging with the middle mouse button, or dragging the gray area around the pages.
 - **Table of contents:** a panel on the left lists the document's chapters, marks the one you're in, and jumps straight to a heading.
 - **Works offline** and can be installed as an app.
+- **Ask AI** (optional): select a term or passage and choose **Explain** or **Ask**, or type a question about the page. Answers stream into a panel on the right. Uses Google Gemini with your own API key (free in [Google AI Studio](https://aistudio.google.com/apikey)), called directly from your browser; only your question, the selection and the current page are sent. Local models (Ollama) are next.
 - Press **`?`** or the **?** button in the top bar for help and all keyboard shortcuts.
 
 Notes, highlights, find in document and export/import are planned for v1 (see [SPEC.md](SPEC.md)).
@@ -32,6 +33,7 @@ Notes, highlights, find in document and export/import are planned for v1 (see [S
 | `g` | Go to page |
 | `+` / `-` / `0` | Zoom in / out / fit width (also `Ctrl` + wheel) |
 | `t` | Table of contents |
+| `a` | Ask AI about the selection, or open / close the Ask panel |
 | `b` | Back to the library |
 | `Esc` | Close the table of contents or help |
 | `?` | Help |

@@ -1,28 +1,42 @@
-import { PanelLeft, ZoomIn, ZoomOut } from 'lucide-react'
+import { PanelLeft, Sparkles, ZoomIn, ZoomOut } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { saveProgress } from '../db'
 import type { DocumentMeta } from '../db/schema'
 import { shortcutsBlocked } from '../keyboard'
 import type { OpenedPdf } from '../pdf/openPdf'
 import { loadOutline, type OutlineItem } from '../pdf/outline'
+import { pdfSelection } from '../viewer/selection'
 import Viewer, { type ViewerHandle, type ViewerState } from '../viewer/Viewer'
+import type { Quote } from '../ai/types'
+import AskPanel, { type AskRequest } from './AskPanel'
 import HelpButton from './Help'
 import { LogoMark } from './Logo'
 import Outline from './Outline'
 import PageInput from './PageInput'
+import SelectionPopover from './SelectionPopover'
 
 /** Progress writes are debounced (SPEC.md §6) and flushed on pagehide and when leaving the reader. */
 const SAVE_DELAY_MS = 500
 const SCROLL_STEP = 60
 const OUTLINE_OPEN_KEY = 'opengrasp:outline-open'
-/** Below this width the outline overlays the page instead of narrowing it (Tailwind's md breakpoint). */
+const ASK_OPEN_KEY = 'opengrasp:ask-open'
+/** Below this width the side panels overlay the page instead of narrowing it (Tailwind's md breakpoint). */
 const NARROW = '(max-width: 767px)'
 
-function readOutlineOpen(): boolean {
+function readOpen(key: string): boolean {
   try {
-    return localStorage.getItem(OUTLINE_OPEN_KEY) === '1' && !matchMedia(NARROW).matches
+    return localStorage.getItem(key) === '1' && !matchMedia(NARROW).matches
   } catch {
     return false
+  }
+}
+
+/** Panel open states are remembered on wide windows only; on narrow ones the panels cover the page. */
+function writeOpen(key: string, open: boolean): void {
+  try {
+    if (!matchMedia(NARROW).matches) localStorage.setItem(key, open ? '1' : '0')
+  } catch {
+    // Storage unavailable (private mode, blocked site data): the panel just starts closed next time.
   }
 }
 
@@ -40,7 +54,20 @@ export default function Reader({ opened, onClose, onProgressSaved }: Props) {
   const [currentPage, setCurrentPage] = useState(meta.progress.pageNumber)
   const [zoomPercent, setZoomPercent] = useState<number | null>(null)
   const [outline, setOutline] = useState<OutlineItem[] | null>(null)
-  const [outlineOpen, setOutlineOpen] = useState(readOutlineOpen)
+  const [outlineOpen, setOutlineOpen] = useState(() => readOpen(OUTLINE_OPEN_KEY))
+  const [askOpen, setAskOpen] = useState(() => readOpen(ASK_OPEN_KEY))
+  // Mounted from the first open on, and only hidden when closed, so the conversation survives closing the panel.
+  const [askMounted, setAskMounted] = useState(askOpen)
+  const [askRequest, setAskRequest] = useState<AskRequest | null>(null)
+  const askId = useRef(0)
+
+  useEffect(() => writeOpen(ASK_OPEN_KEY, askOpen), [askOpen])
+  if (askOpen && !askMounted) setAskMounted(true)
+
+  const ask = useCallback((quote?: Quote, question?: string) => {
+    setAskOpen(true)
+    setAskRequest({ id: ++askId.current, quote, question })
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -53,14 +80,7 @@ export default function Reader({ opened, onClose, onProgressSaved }: Props) {
     }
   }, [pdf])
 
-  // The open state is remembered on wide windows only; on narrow ones the panel covers the page.
-  useEffect(() => {
-    try {
-      if (!matchMedia(NARROW).matches) localStorage.setItem(OUTLINE_OPEN_KEY, outlineOpen ? '1' : '0')
-    } catch {
-      // Storage unavailable (private mode, blocked site data): the panel just starts closed next time.
-    }
-  }, [outlineOpen])
+  useEffect(() => writeOpen(OUTLINE_OPEN_KEY, outlineOpen), [outlineOpen])
 
   const selectOutlineItem = useCallback((item: OutlineItem) => {
     if (item.page !== null) viewer.current?.goToPage(item.page, item.fy)
@@ -143,6 +163,14 @@ export default function Reader({ opened, onClose, onProgressSaved }: Props) {
           }
       if (!mod) {
         actions.t = () => setOutlineOpen((open) => !open)
+        // With text selected, asks about it; otherwise opens or closes the panel.
+        actions.a = () => {
+          const selection = pdfSelection()
+          if (selection) {
+            ask({ text: selection.text, pageNumber: selection.pageNumber })
+            document.getSelection()?.removeAllRanges()
+          } else setAskOpen((open) => !open)
+        }
         actions.Escape = () => setOutlineOpen(false)
         actions.b = () => {
           flush()
@@ -156,7 +184,7 @@ export default function Reader({ opened, onClose, onProgressSaved }: Props) {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [pdf.numPages, flush, onClose])
+  }, [pdf.numPages, flush, onClose, ask])
 
   const button = 'rounded-md p-1.5 text-muted hover:bg-surface hover:text-text'
 
@@ -220,7 +248,19 @@ export default function Reader({ opened, onClose, onProgressSaved }: Props) {
               <ZoomIn size={16} aria-hidden />
             </button>
           </div>
-          <HelpButton className="rounded-md p-1.5 text-muted hover:bg-surface hover:text-text" />
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setAskOpen((open) => !open)}
+              aria-label="Ask AI"
+              aria-pressed={askOpen}
+              title="Ask AI (a)"
+              className={`${button} ${askOpen ? 'bg-surface text-text' : ''}`}
+            >
+              <Sparkles size={16} aria-hidden />
+            </button>
+            <HelpButton className="rounded-md p-1.5 text-muted hover:bg-surface hover:text-text" />
+          </div>
         </div>
       </header>
 
@@ -237,7 +277,31 @@ export default function Reader({ opened, onClose, onProgressSaved }: Props) {
           </nav>
         )}
         <Viewer ref={viewer} pdf={pdf} initialProgress={meta.progress} onStateChange={onStateChange} />
+        {askOpen && (
+          <div className="absolute inset-0 z-10 bg-black/20 md:hidden" onClick={() => setAskOpen(false)} aria-hidden />
+        )}
+        {askMounted && (
+          <aside
+            aria-label="Ask AI"
+            hidden={!askOpen}
+            className="w-[380px] shrink-0 border-l border-border bg-bg max-md:absolute max-md:inset-y-0 max-md:right-0 max-md:z-10 max-md:w-[min(380px,100%)] max-md:shadow-xl"
+          >
+            <AskPanel
+              pdf={pdf}
+              title={meta.title ?? meta.fileName}
+              outline={outline}
+              currentPage={currentPage}
+              request={askRequest}
+              onClose={() => {
+                setAskOpen(false)
+                viewer.current?.focus()
+              }}
+              onDone={() => viewer.current?.focus()}
+            />
+          </aside>
+        )}
       </div>
+      <SelectionPopover onExplain={(quote) => ask(quote, 'Explain this.')} onAsk={(quote) => ask(quote)} />
     </div>
   )
 }

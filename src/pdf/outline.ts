@@ -65,3 +65,20 @@ export async function loadOutline(pdf: PDFDocumentProxy): Promise<OutlineItem[]>
   const raw = await pdf.getOutline()
   return raw ? resolve(pdf, raw, '') : []
 }
+
+/**
+ * The entry the reader is in, with its ancestors: the last entry, in document order, that starts on or before the
+ * given page. Empty before the first entry.
+ */
+export function sectionPath(items: OutlineItem[], page: number): OutlineItem[] {
+  let best: OutlineItem[] = []
+  const walk = (list: OutlineItem[], path: OutlineItem[]) => {
+    for (const item of list) {
+      const here = [...path, item]
+      if (item.page !== null && item.page <= page) best = here
+      walk(item.children, here)
+    }
+  }
+  walk(items, [])
+  return best
+}
