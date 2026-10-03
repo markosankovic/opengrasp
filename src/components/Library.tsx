@@ -131,7 +131,7 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
   })
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-3xl flex-col px-6">
+    <div className="mx-auto flex min-h-dvh max-w-5xl flex-col px-6">
       <header className="flex h-16 items-center justify-between">
         <h1 aria-label="OpenGrasp">
           <Logo />

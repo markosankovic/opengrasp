@@ -284,7 +284,7 @@ export default function Reader({ opened, onClose, onProgressSaved }: Props) {
           <aside
             aria-label="Ask AI"
             hidden={!askOpen}
-            className="w-[380px] shrink-0 border-l border-border bg-bg max-md:absolute max-md:inset-y-0 max-md:right-0 max-md:z-10 max-md:w-[min(380px,100%)] max-md:shadow-xl"
+            className="w-[min(576px,40vw)] shrink-0 border-l border-border bg-bg max-md:absolute max-md:inset-y-0 max-md:right-0 max-md:z-10 max-md:w-[min(576px,100%)] max-md:shadow-xl"
           >
             <AskPanel
               pdf={pdf}
