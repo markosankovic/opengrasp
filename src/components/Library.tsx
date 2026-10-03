@@ -108,8 +108,8 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
   })
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-2xl flex-col px-4">
-      <header className="flex h-14 items-center justify-between">
+    <div className="mx-auto flex min-h-dvh max-w-3xl flex-col px-6">
+      <header className="flex h-16 items-center justify-between">
         <h1 aria-label="OpenGrasp">
           <Logo />
         </h1>
@@ -127,39 +127,43 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
       {error && <p className="py-2 text-danger">{error}</p>}
 
       {recent.length > 0 ? (
-        <h2 className="mt-6 mb-1 text-xs font-medium tracking-wider text-muted uppercase">Recent</h2>
+        <h2 className="mt-10 mb-3 text-xs font-medium tracking-wider text-muted uppercase">Recent</h2>
       ) : null}
 
       {recent.length > 0 ? (
-        <ul className="-mx-3">
+        <ul className="-mx-3 flex flex-col gap-1">
           {recent.map((doc) => (
-            <li key={doc.id} className="group flex items-center gap-3 rounded-md hover:bg-surface">
+            <li key={doc.id} className="group flex items-center gap-2 rounded-lg hover:bg-surface">
               {confirmingRemove === doc.id ? (
                 <div
-                  className="flex min-h-16 w-full items-center gap-3 px-3"
+                  className="flex w-full items-center gap-6 rounded-lg bg-surface px-3 py-3.5"
                   onKeyDown={(e) => e.key === 'Escape' && setConfirmingRemove(null)}
                 >
                   <span className="min-w-0 flex-1">
-                    Remove <span className="font-semibold">{doc.title ?? doc.fileName}</span> from the library?
-                    <span className="block text-xs text-muted">
+                    <span className="block truncate text-[15px] leading-snug">
+                      Remove <span className="font-medium">{doc.title ?? doc.fileName}</span>?
+                    </span>
+                    <span className="mt-1 block truncate text-xs text-muted">
                       Its reading position, notes and highlights are deleted. The PDF file is not touched.
                     </span>
                   </span>
-                  <button
-                    type="button"
-                    autoFocus
-                    onClick={() => void remove(doc)}
-                    className="rounded-md px-2 py-1 font-semibold text-danger hover:bg-bg"
-                  >
-                    Remove
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmingRemove(null)}
-                    className="rounded-md px-2 py-1 text-muted hover:bg-bg hover:text-text"
-                  >
-                    Cancel
-                  </button>
+                  <span className="flex shrink-0 items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setConfirmingRemove(null)}
+                      className="rounded-lg px-3 py-1.5 font-medium text-muted hover:bg-bg hover:text-text"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      autoFocus
+                      onClick={() => void remove(doc)}
+                      className="rounded-lg bg-danger/10 px-3 py-1.5 font-medium text-danger hover:bg-danger/15"
+                    >
+                      Remove
+                    </button>
+                  </span>
                 </div>
               ) : (
                 <>
@@ -167,18 +171,18 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
                     type="button"
                     onClick={() => void reopen(doc)}
                     title={`Open ${doc.fileName}`}
-                    className="flex min-w-0 flex-1 items-center justify-between gap-4 rounded-md px-3 py-3 text-left"
+                    className="flex min-w-0 flex-1 items-center justify-between gap-6 rounded-lg px-3 py-3.5 text-left"
                   >
                     <span className="min-w-0">
                       <span className="block truncate text-[15px] leading-snug font-medium">
                         {doc.title ?? doc.fileName}
                       </span>
-                      <span className="mt-0.5 block truncate text-xs text-muted">
+                      <span className="mt-1 block truncate text-xs text-muted">
                         {doc.title ? `${doc.fileName} · ` : ''}
                         {timeAgo(doc.lastOpenedAt)}
                       </span>
                     </span>
-                    <span className="text-xs font-medium text-muted tabular-nums">
+                    <span className="w-10 shrink-0 text-right text-xs font-medium text-muted tabular-nums">
                       {Math.round((doc.progress.pageNumber / doc.pageCount) * 100)}%
                     </span>
                   </button>
@@ -187,7 +191,7 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
                     onClick={() => setConfirmingRemove(doc.id)}
                     aria-label={`Remove ${doc.title ?? doc.fileName} from the library`}
                     title="Remove from library"
-                    className="mr-2 rounded-md p-1.5 text-muted opacity-0 group-hover:opacity-100 hover:bg-bg hover:text-danger focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
+                    className="mr-2 rounded-lg p-2 text-muted opacity-0 group-hover:opacity-100 hover:bg-bg hover:text-danger focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
                   >
                     <Trash2 size={16} aria-hidden />
                   </button>
@@ -199,7 +203,7 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
       ) : null}
 
       {/* Sits at the bottom of the page; mt-auto pushes it down below the list. */}
-      <div className="mt-auto pt-10 pb-8">
+      <div className="mt-auto pt-12 pb-10">
         <button
           type="button"
           onClick={() => void pick()}

@@ -21,8 +21,9 @@ function githubPagesSpaFallback(): Plugin {
   }
 }
 
-export default defineConfig(({ command }) => {
-  const base = command === 'build' ? PAGES_BASE : '/'
+export default defineConfig(({ command, isPreview }) => {
+  // `vite preview` serves the production build, so it needs the production base too.
+  const base = command === 'build' || isPreview ? PAGES_BASE : '/'
   return {
     base,
     plugins: [
