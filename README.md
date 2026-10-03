@@ -4,7 +4,7 @@ OpenGrasp is an open-source, lightning-fast PWA PDF reader built for deep techni
 
 Your PDFs never leave your device. OpenGrasp stores only metadata: reading position, notes and highlights.
 
-**App:** https://markosankovic.github.io/opengrasp/ · **Spec:** [SPEC.md](SPEC.md)
+**App:** https://opengrasp.js.org/ · **Spec:** [SPEC.md](SPEC.md)
 
 ## Using OpenGrasp
 

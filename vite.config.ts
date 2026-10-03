@@ -4,11 +4,11 @@ import react from '@vitejs/plugin-react'
 import { defineConfig, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
-// Served from https://markosankovic.github.io/opengrasp/ (SPEC.md §3). Dev and preview use the same base.
-const base = '/opengrasp/'
+// Served from https://opengrasp.js.org/ (SPEC.md §3). Dev and preview use the same base.
+const base = '/'
 
 /**
- * GitHub Pages has no SPA fallback: a direct visit to /opengrasp/read/<slug> would 404. Pages serves 404.html for
+ * GitHub Pages has no SPA fallback: a direct visit to /read/<slug> would 404. Pages serves 404.html for
  * unknown paths, so a copy of index.html there boots the app on any route (SPEC.md §4.8).
  */
 function githubPagesSpaFallback(): Plugin {

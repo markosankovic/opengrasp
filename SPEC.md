@@ -15,8 +15,8 @@ OpenGrasp is an open-source, local-first Progressive Web App (PWA) for reading P
 - **OpenGrasp**: "grasp" means understanding a hard concept and also holding on to your place and notes. "Open" reflects that the project is open source and gives open access to knowledge.
 - Repository: `github.com/markosankovic/opengrasp` (no hyphen, so it matches the single-word brand).
 - Possible future package scope: `@opengrasp/*` (e.g. `@opengrasp/core`, `@opengrasp/sync`).
-- Hosting for v1: GitHub Pages at `markosankovic.github.io/opengrasp`.
-- A custom domain comes later. Candidates (availability not checked yet): `opengrasp.app`, `opengrasp.dev`, `opengrasp.ai`.
+- Hosting: GitHub Pages at `opengrasp.js.org` (a free [js.org](https://js.org) subdomain; `markosankovic.github.io/opengrasp` redirects there).
+- A dedicated domain may come later. Candidates (availability not checked yet): `opengrasp.app`, `opengrasp.dev`, `opengrasp.ai`.
 
 ### 1.2 Target users
 
@@ -90,7 +90,7 @@ OpenGrasp is an open-source, local-first Progressive Web App (PWA) for reading P
 | Persistence | **IndexedDB** via **idb** | Decided; the comparison is in §3.1. |
 | Icons | **Lucide** (`lucide-react`) | See §5.5. |
 | PWA | **vite-plugin-pwa** (Workbox) | Generates the manifest and service worker. |
-| Hosting | **GitHub Pages** + **GitHub Actions** | `.github/workflows/deploy.yml`: `npm run build` → deploy `dist/`. Vite `base` is `/opengrasp/` everywhere (dev, preview, build) unless a custom domain is used. |
+| Hosting | **GitHub Pages** + **GitHub Actions** | `.github/workflows/deploy.yml`: `npm run build` → deploy `dist/`. Custom domain `opengrasp.js.org`, set in the repo's Pages settings and in `public/CNAME`. Vite `base` is `/` everywhere (dev, preview, build). |
 | License | **MIT** | Already in the repo. |
 
 ### 3.1 Storage library: Dexie.js vs idb
@@ -329,8 +329,8 @@ The browser's back button returns from a document to the library instead of leav
 
 | Path | View |
 |------|------|
-| `/opengrasp/` | Library |
-| `/opengrasp/read/<slug>` | Reader, e.g. `/read/the-cpp-programming-language-4th-edition` |
+| `/` | Library |
+| `/read/<slug>` | Reader, e.g. `/read/the-cpp-programming-language-4th-edition` |
 
 - **Implementation:** a few lines on the History API (`src/router.ts`, `useSyncExternalStore`). There are only two routes, so there's no router library.
 - **Slugs** (`src/slug.ts`) come from the PDF title, or the file name without `.pdf`:
@@ -368,7 +368,7 @@ An optional panel for asking a language model about what you're reading, e.g. a 
 - **Rendering answers:** `src/components/Markdown.tsx` handles paragraphs, headings, lists, quotes, fenced code, inline code, bold, italics and `https` links. It builds React elements and never sets HTML, so model output can't inject markup or scripts. This also protects the API key.
 - **Settings** (gear in the panel): API key (paste-to-connect: pasting a key-shaped value checks it, saves it and switches to the conversation, no button needed), model (listed from the API, text-chat models only, "flash" models first), "Send the whole current page", "Remember the key on this device".
   - The key is kept in `localStorage` when remembered, otherwise in `sessionStorage` (gone when the tab closes). Settings are per-browser and aren't exported.
-  - Known limitation: every GitHub Pages project of the same user shares the origin `markosankovic.github.io`, so another project there could read a remembered key. A custom domain (§1.1) removes this.
+  - The app has its own origin (`opengrasp.js.org`, §1.1), so other GitHub Pages projects can't read a remembered key.
 - **Privacy:** the panel and the settings say what is sent and where ("Gemini · model", "sent to Google"). The PDF file itself is never uploaded. Nothing is sent until the user asks.
 - **Next:** an OpenAI-compatible adapter for Ollama, LM Studio and llama.cpp (`OLLAMA_ORIGINS` must allow the app's origin, and Chrome asks for local-network permission), and Chrome's built-in model.
 
