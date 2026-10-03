@@ -11,6 +11,7 @@ import {
   type PickedFile,
 } from '../pdf/fileAccess'
 import { openPdf, type OpenedPdf } from '../pdf/openPdf'
+import Logo from './Logo'
 
 const relativeTime = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
 
@@ -30,6 +31,7 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
   const [recent, setRecent] = useState<DocumentMeta[]>([])
   const [error, setError] = useState<string | null>(null)
   const [confirmingRemove, setConfirmingRemove] = useState<string | null>(null)
+  const [dragging, setDragging] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -90,17 +92,34 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
   }
 
   // Dropping a PDF anywhere in the window opens it (SPEC.md §5.2).
+  // The drop area lights up while a file is dragged over the window (enter/leave fire per child, hence the depth count).
+  const dragDepth = useRef(0)
   useEffect(() => {
+    const onDragEnter = (e: DragEvent) => {
+      if (!e.dataTransfer?.types.includes('Files')) return
+      dragDepth.current++
+      setDragging(true)
+    }
+    const onDragLeave = () => {
+      dragDepth.current = Math.max(0, dragDepth.current - 1)
+      if (dragDepth.current === 0) setDragging(false)
+    }
     const onDragOver = (e: DragEvent) => e.preventDefault()
     const onDrop = (e: DragEvent) => {
       e.preventDefault()
+      dragDepth.current = 0
+      setDragging(false)
       const file = e.dataTransfer?.files[0]
       const handle = handleFromDrop(e)
       if (file) void handle.then((h) => open({ file, handle: h }))
     }
+    window.addEventListener('dragenter', onDragEnter)
+    window.addEventListener('dragleave', onDragLeave)
     window.addEventListener('dragover', onDragOver)
     window.addEventListener('drop', onDrop)
     return () => {
+      window.removeEventListener('dragenter', onDragEnter)
+      window.removeEventListener('dragleave', onDragLeave)
       window.removeEventListener('dragover', onDragOver)
       window.removeEventListener('drop', onDrop)
     }
@@ -108,15 +127,18 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-2xl flex-col px-4">
-      <header className="flex h-12 items-center justify-between">
-        <h1 className="font-semibold">OpenGrasp</h1>
+      <header className="flex h-14 items-center justify-between">
+        <h1 aria-label="OpenGrasp">
+          <Logo />
+        </h1>
         <button
           type="button"
           onClick={() => void pick()}
-          className="flex items-center gap-1.5 rounded-md px-2 py-1 text-muted hover:bg-surface hover:text-text"
+          className="flex items-center gap-2 rounded-lg px-3.5 py-2 font-medium text-muted hover:bg-surface hover:text-text"
         >
           <FileUp size={16} aria-hidden />
-          Open PDF
+          {/* Browsers snap the baseline up to a whole pixel here; the 0.5px nudge was measured to center it exactly. */}
+          <span className="text-trim relative top-[0.5px]">Load PDF</span>
         </button>
         <input
           ref={inputRef}
@@ -132,6 +154,10 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
       </header>
 
       {error && <p className="py-2 text-danger">{error}</p>}
+
+      {recent.length > 0 ? (
+        <h2 className="mt-6 mb-1 text-xs font-medium tracking-wider text-muted uppercase">Recent</h2>
+      ) : null}
 
       {recent.length > 0 ? (
         <ul className="-mx-3">
@@ -173,13 +199,15 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
                     className="flex min-w-0 flex-1 items-center justify-between gap-4 rounded-md px-3 py-3 text-left"
                   >
                     <span className="min-w-0">
-                      <span className="block truncate">{doc.title ?? doc.fileName}</span>
-                      <span className="block truncate text-xs text-muted">
+                      <span className="block truncate text-[15px] leading-snug font-medium">
+                        {doc.title ?? doc.fileName}
+                      </span>
+                      <span className="mt-0.5 block truncate text-xs text-muted">
                         {doc.title ? `${doc.fileName} · ` : ''}
                         {timeAgo(doc.lastOpenedAt)}
                       </span>
                     </span>
-                    <span className="text-xs text-muted tabular-nums">
+                    <span className="text-xs font-medium text-muted tabular-nums">
                       {Math.round((doc.progress.pageNumber / doc.pageCount) * 100)}%
                     </span>
                   </button>
@@ -199,7 +227,26 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
         </ul>
       ) : null}
 
-      <p className="flex flex-1 items-center justify-center py-12 text-muted">Drop a PDF anywhere, or open one.</p>
+      {/* Sits at the bottom of the page; mt-auto pushes it down below the list. */}
+      <div className="mt-auto pt-10 pb-8">
+        <button
+          type="button"
+          onClick={() => void pick()}
+          className={`group/drop flex w-full flex-col items-center gap-3 rounded-2xl border-2 border-dashed px-6 py-10 transition-colors ${
+            dragging ? 'border-accent bg-accent/5' : 'border-border hover:border-muted/50 hover:bg-surface/60'
+          }`}
+        >
+          <span
+            className={`rounded-2xl p-4 transition-colors ${dragging ? 'bg-accent/15 text-accent' : 'bg-surface text-muted group-hover/drop:text-text'}`}
+          >
+            <FileUp size={32} strokeWidth={1.5} aria-hidden />
+          </span>
+          <span className="text-[15px] font-medium">{dragging ? 'Drop to open' : 'Drop a PDF here'}</span>
+          <span className="text-xs text-muted">
+            or <span className="font-medium text-accent">browse your files</span> · PDFs never leave your device
+          </span>
+        </button>
+      </div>
     </div>
   )
 }

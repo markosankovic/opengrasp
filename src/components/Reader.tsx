@@ -109,7 +109,7 @@ export default function Reader({ opened, onClose }: { opened: OpenedPdf; onClose
         >
           <ArrowLeft size={16} aria-hidden />
         </button>
-        <span className="min-w-0 flex-1 truncate px-1">{meta.title ?? meta.fileName}</span>
+        <span className="min-w-0 flex-1 truncate px-1 font-medium">{meta.title ?? meta.fileName}</span>
 
         <PageInput
           ref={pageInput}

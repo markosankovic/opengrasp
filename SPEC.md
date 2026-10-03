@@ -341,7 +341,7 @@ There is no sync in v1. Moving data between devices or browsers, and backing it 
 ```
 Library                              Reader
 ┌────────────────────────────────┐   ┌──────────────────────────────────┬───────────┐
-│ OpenGrasp            [Open PDF]│   │ ‹  Effective Modern C++  142/334 │  Notes    │
+│ OpenGrasp            [Load PDF]│   │ ‹  Effective Modern C++  142/334 │  Notes    │
 ├────────────────────────────────┤   ├──────────────────────────────────┤           │
 │                                │   │                                  │ p.142     │
 │  Effective Modern C++    42%   │   │          ┌────────────┐          │ ───────── │
@@ -357,6 +357,7 @@ Library                              Reader
 - **Library:**
   - A plain list with the title, progress percentage and relative last-opened time.
   - Dropping a PDF anywhere in the window opens it.
+  - A drop area at the bottom of the page: a dashed box with a large file icon, "Drop a PDF here", and "or browse your files · PDFs never leave your device". It highlights in the accent color while a file is dragged over the window, and clicking it opens the picker.
   - Selecting a document whose file isn't available prompts for the file and shows its expected name.
   - A trash icon (shown on hover or keyboard focus, always on devices without hover) removes a document. The row turns into an inline confirm (Escape cancels), because the document's position, notes and highlights are deleted. The PDF file is never touched.
 - **Reader top bar:**
@@ -396,10 +397,29 @@ All colors are CSS custom properties defined once in Tailwind v4's `@theme`. Com
 
 ### 5.4 Typography
 
-- **UI font:** the system font stack (`ui-sans-serif, system-ui, …`). No web fonts, so there's nothing to download and no layout shift.
-- **Monospace** (notes, code): `ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`.
-- **Scale:** 12 / 14 / 16 px only. The UI text is 14 px, and notes are 14–16 px.
-- **Weights:** 400 and 600 only.
+- **UI font: Geist**, with **Geist Mono** for notes and code (Vercel, SIL Open Font License 1.1, free to bundle).
+  - The system font stack looked different on every OS and felt bland. Geist is simple but clearly designed, and it suits a technical study tool.
+  - Both are self-hosted as variable fonts via `@fontsource-variable/geist` and `@fontsource-variable/geist-mono`. There are no requests to third-party font services.
+  - The browser loads only the character subsets a page needs (Latin is about 25 KB per font). The service worker precaches all of them for offline use.
+  - Fallback: `ui-sans-serif, system-ui` and `ui-monospace`.
+- **Scale:**
+
+  | Size | Use |
+  |------|-----|
+  | 12 px | Metadata, section labels, percentages |
+  | 14 px | Base UI text |
+  | 15 px | List titles |
+  | 17 px | Wordmark |
+
+  Notes are 14–16 px.
+- **Weights:**
+  - 400: body text
+  - 500: titles, buttons, the reader's document title, numbers that matter
+  - 600: the wordmark and emphasis
+- **Hierarchy:**
+  - Each level differs in size *and* weight or color: titles are 15 px medium in the text color, metadata is 12 px regular in muted gray.
+  - Section labels ("Recent") are 12 px medium, uppercase and widely tracked, in muted gray.
+  - Numbers use `tabular-nums`.
 
 ### 5.5 Icons
 
@@ -422,7 +442,7 @@ All colors are CSS custom properties defined once in Tailwind v4's `@theme`. Com
 
 ### 5.6 App icon and brand
 
-- **Wordmark:** "OpenGrasp" set in the system font at weight 600. No custom logotype for now.
+- **Logo lockup:** the brace mark in the accent color followed by the wordmark "Open**Grasp**" in the system font: "Open" at weight 400, "Grasp" at 600, tight tracking. It is the `Logo` component, drawn inline so it follows the theme. It is used in the library header.
 - **App icon (final): "Brace" `{≡`**, a code brace holding lines of text, in the accent color. The source files are final and shouldn't be redrawn:
   - `public/logo.svg` is the master and the SVG favicon. It switches to the dark accent under `prefers-color-scheme: dark`.
   - `public/logo-maskable.svg` is a white glyph on a full accent background, scaled into the 80% safe zone.
@@ -436,7 +456,7 @@ All colors are CSS custom properties defined once in Tailwind v4's `@theme`. Com
 
 | Key | Action |
 |-----|--------|
-| `o` / `Ctrl+O` | Open PDF |
+| `o` / `Ctrl+O` | Load PDF |
 | `j` / `k`, `↓` / `↑` | Scroll |
 | `n` / `p`, `→` / `←`, `PgDn` / `PgUp` | Next / previous page |
 | `g` | Go to page |

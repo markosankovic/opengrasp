@@ -1,9 +1,12 @@
 @import 'tailwindcss';
+@import '@fontsource-variable/geist';
+@import '@fontsource-variable/geist-mono';
 
 /* Design tokens (SPEC.md §5.3). Components use these semantic names only, never raw palette values. */
 @theme {
-  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* Geist and Geist Mono (SIL OFL 1.1), bundled locally (SPEC.md §5.4). */
+  --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   --color-bg: #ffffff;
   --color-surface: #f4f4f5;
@@ -67,6 +70,14 @@
   :focus-visible {
     @apply outline-2 outline-offset-2 outline-accent;
   }
+}
+
+/*
+ * Trims a label's line box to cap height and baseline, so flex centering aligns the letters (not the line box)
+ * with an adjacent icon. Geist has more room above caps than below the baseline, which otherwise sets text ~1px high.
+ */
+@utility text-trim {
+  text-box: trim-both cap alphabetic;
 }
 
 @media (prefers-reduced-motion: reduce) {

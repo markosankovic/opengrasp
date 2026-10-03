@@ -32,7 +32,7 @@ export default defineConfig({
       },
       workbox: {
         // Precache the app shell and the lazily loaded PDF.js chunks/worker so the app works offline.
-        globPatterns: ['**/*.{js,mjs,css,html,svg,png,ico,wasm}'],
+        globPatterns: ['**/*.{js,mjs,css,html,svg,png,ico,wasm,woff2}'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
       },
     }),
