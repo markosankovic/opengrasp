@@ -390,6 +390,7 @@ Library                              Reader
 ```
 
 - **Library:**
+  - Two edges: the header (logo, Load PDF, help), the row backgrounds (hover, remove confirm) and the drop area border share the outer content edge; "Recent" and the row text are inset on a shared inner edge. Nothing reaches outside the column, so it lines up whether or not a row is highlighted.
   - A plain list with the title, progress percentage and relative last-opened time.
   - Dropping a PDF anywhere in the window opens it.
   - A drop area at the bottom of the page: a dashed box with a large file icon, "Drop a PDF here", and "or browse your files · PDFs never leave your device". It highlights in the accent color while a file is dragged over the window, and clicking it opens the picker.
@@ -469,6 +470,10 @@ All colors are CSS custom properties defined once in Tailwind v4's `@theme`. Com
 - **Rules:**
   - Icons are 16 px, colored `--color-muted` at rest and `--color-text` on hover or when active.
   - Icon-only buttons need an `aria-label` and a tooltip that shows the shortcut (e.g. "Notes (N)").
+- **Buttons:**
+  - Text buttons, with or without an icon, use the `btn` utility (`src/index.css`): 32 px high, 12 px side padding, an 8 px gap to the icon, `rounded-lg`, weight 500. Icon-only buttons in the same row use `btn-icon`, a 32 px square. The reader bar's compact 40 px row keeps its smaller icon buttons.
+  - The label goes in a `<span>`, which `btn` trims to cap height and baseline (`text-box: trim-both cap alphabetic`). Geist has more room above its capitals than below the baseline, so an untrimmed label sits about 1 px high. Trimmed, labels are centered within half a pixel, measured at 1× and 2× pixel density. No per-button nudges.
+  - Every enabled button shows the pointer cursor.
 - **Initial set:**
 
   | Purpose | Lucide icons |

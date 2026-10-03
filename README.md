@@ -9,7 +9,8 @@ Your PDFs never leave your device. OpenGrasp stores only metadata: reading posit
 ## Using OpenGrasp
 
 - **Open a PDF** by dropping it anywhere on the library page, or with **Load PDF**.
-- **Your place is saved automatically:** page, position on the page and zoom. Reopen the document and you continue where you stopped.
+- **Your place is saved automatically:** page, position on the page and zoom. Reopen the document and you continue where you stopped. The top bar shows the page and how far through you are, e.g. `97 / 193 (50%)`.
+- **Zoom** with `+` / `-`, `Ctrl` + wheel or a trackpad pinch. Click the zoom percentage (or press `0`) to fit the page width; it fits the book's typical page, so a smaller cover doesn't throw it off.
 - **Private by design:** the PDF itself is never stored or uploaded, only the reading position, in your browser (IndexedDB). In Chromium-based browsers the app keeps a handle to the file, so reopening usually takes one click; elsewhere you pick the file again.
 - **Pan a zoomed-in page** by holding `Space` and dragging, dragging with the middle mouse button, or dragging the gray area around the pages.
 - **Table of contents:** a panel on the left lists the document's chapters, marks the one you're in, and jumps straight to a heading.
@@ -47,6 +48,8 @@ npm run preview    # serve the production build locally
 npm run lint
 npm run icons      # regenerate PNG/ICO icons from public/logo*.svg
 ```
+
+UI conventions for contributors: text buttons, with or without an icon, use the `btn` utility and icon-only buttons use `btn-icon` (both in `src/index.css`), so every button has the same 32 px height, padding and radius and its label sits optically centered. See the design guide in [SPEC.md](SPEC.md) §5.
 
 ## Tech stack
 

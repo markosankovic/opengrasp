@@ -141,24 +141,23 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
             type="button"
             onClick={() => void pick()}
             title="Load PDF (o)"
-            className="flex items-center gap-2 rounded-lg px-3.5 py-2 font-medium text-muted hover:bg-surface hover:text-text"
+            className="btn text-muted hover:bg-surface hover:text-text"
           >
             <FileUp size={16} aria-hidden />
-            {/* Browsers snap the baseline up to a whole pixel here; the 0.5px nudge was measured to center it exactly. */}
-            <span className="text-trim relative top-[0.5px]">Load PDF</span>
+            <span>Load PDF</span>
           </button>
-          <HelpButton className="rounded-lg p-[7px] text-muted hover:bg-surface hover:text-text" />
+          <HelpButton className="btn-icon text-muted hover:bg-surface hover:text-text" />
         </div>
       </header>
 
       {error && <p className="py-2 text-danger">{error}</p>}
 
       {recent.length > 0 ? (
-        <h2 className="mt-10 mb-3 text-xs font-medium tracking-wider text-muted uppercase">Recent</h2>
+        <h2 className="mt-10 mb-3 px-3 text-xs font-medium tracking-wider text-muted uppercase">Recent</h2>
       ) : null}
 
       {recent.length > 0 ? (
-        <ul className="-mx-3 flex flex-col gap-1">
+        <ul className="flex flex-col gap-1">
           {recent.map((doc, i) => (
             <li key={doc.id} className="group flex items-center gap-2 rounded-lg hover:bg-surface">
               {confirmingRemove === doc.id ? (
@@ -178,17 +177,17 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
                     <button
                       type="button"
                       onClick={() => setConfirmingRemove(null)}
-                      className="rounded-lg px-3 py-1.5 font-medium text-muted hover:bg-bg hover:text-text"
+                      className="btn text-muted hover:bg-bg hover:text-text"
                     >
-                      Cancel
+                      <span>Cancel</span>
                     </button>
                     <button
                       type="button"
                       autoFocus
                       onClick={() => void remove(doc)}
-                      className="rounded-lg bg-danger/10 px-3 py-1.5 font-medium text-danger hover:bg-danger/15"
+                      className="btn bg-danger/10 text-danger hover:bg-danger/15"
                     >
-                      Remove
+                      <span>Remove</span>
                     </button>
                   </span>
                 </div>

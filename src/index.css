@@ -85,6 +85,37 @@
   text-box: trim-both cap alphabetic;
 }
 
+/*
+ * Text buttons, with or without an icon: one height, padding, gap and radius, so they line up wherever they meet.
+ * Labels go in a <span>; it is trimmed to cap height and baseline so centering aligns the letters, not the line box.
+ */
+@utility btn {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 32px;
+  padding-inline: 12px;
+  border-radius: var(--radius-lg);
+  font-weight: 500;
+  white-space: nowrap;
+  & > span {
+    text-box: trim-both cap alphabetic;
+  }
+}
+
+/* Icon-only companion to .btn: the same height, square. */
+@utility btn-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-lg);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

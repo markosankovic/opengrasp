@@ -79,9 +79,9 @@ export default function Resume({ slug, onOpened }: { slug: string; onOpened: (op
               type="button"
               autoFocus
               onClick={() => void resume(state.doc)}
-              className="rounded-lg bg-accent px-4 py-2 font-medium text-white hover:opacity-90"
+              className="btn bg-accent text-white hover:opacity-90"
             >
-              Continue reading
+              <span>Continue reading</span>
             </button>
             {error && <p className="text-danger">{error}</p>}
           </>
@@ -89,10 +89,10 @@ export default function Resume({ slug, onOpened }: { slug: string; onOpened: (op
         <button
           type="button"
           onClick={backToLibrary}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-muted hover:bg-surface hover:text-text"
+          className="btn text-muted hover:bg-surface hover:text-text"
         >
           <ArrowLeft size={16} aria-hidden />
-          <span className="text-trim">Library</span>
+          <span>Library</span>
         </button>
       </main>
     </div>
