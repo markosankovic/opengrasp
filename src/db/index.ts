@@ -42,3 +42,10 @@ export async function listRecentDocuments(): Promise<DocumentMeta[]> {
   const docs = await (await getDB()).getAllFromIndex('documents', 'lastOpenedAt')
   return docs.reverse()
 }
+
+export async function saveProgress(id: string, progress: DocumentMeta['progress']): Promise<void> {
+  const tx = (await getDB()).transaction('documents', 'readwrite')
+  const doc = await tx.store.get(id)
+  if (doc) await tx.store.put({ ...doc, progress })
+  await tx.done
+}
