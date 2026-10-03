@@ -153,9 +153,12 @@ Any change to the file's contents produces a new `id`, for example a new revisio
 
 ### 4.3 Reopening files
 
-- **Baseline (all browsers):** the user re-selects the file. The library shows the expected file name to help.
-- **Progressive enhancement (Chromium):** the File System Access API (`showOpenFilePicker`). `FileSystemFileHandle`s can be kept in IndexedDB, so a document opens from the library in one click after permission is granted again.
-- **PWA file handling (Chromium desktop):** a `file_handlers` entry in the manifest registers OpenGrasp as an app that can open `.pdf` files from the operating system.
+- **Baseline (all browsers):** clicking a library item opens the file picker. The item shows the expected file name to help.
+- **Progressive enhancement (Chromium, implemented):** files opened through the picker (`showOpenFilePicker`) or by drag-and-drop (`DataTransferItem.getAsFileSystemHandle()`) keep a `FileSystemFileHandle` in the `fileHandles` store.
+  - Clicking the library item reopens the file directly. If read permission has lapsed (e.g. after a browser restart), the click triggers a one-line browser prompt. Chrome can remember the grant ("Allow on every visit"), especially for the installed PWA.
+  - If the file was moved, renamed or deleted, the stale handle is removed, a one-line message is shown and the picker opens.
+  - A handle is device-specific and is never exported (§4.6).
+- **PWA file handling (Chromium desktop, later):** a `file_handlers` entry in the manifest registers OpenGrasp as an app that can open `.pdf` files from the operating system.
 
 ### 4.4 Data model (IndexedDB)
 

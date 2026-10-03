@@ -49,3 +49,15 @@ export async function saveProgress(id: string, progress: DocumentMeta['progress'
   if (doc) await tx.store.put({ ...doc, progress })
   await tx.done
 }
+
+export async function getFileHandle(documentId: string): Promise<FileSystemFileHandle | undefined> {
+  return (await (await getDB()).get('fileHandles', documentId))?.handle
+}
+
+export async function putFileHandle(documentId: string, handle: FileSystemFileHandle): Promise<void> {
+  await (await getDB()).put('fileHandles', { documentId, handle })
+}
+
+export async function deleteFileHandle(documentId: string): Promise<void> {
+  await (await getDB()).delete('fileHandles', documentId)
+}

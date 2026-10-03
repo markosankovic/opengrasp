@@ -1,7 +1,15 @@
 import { FileUp } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { listRecentDocuments } from '../db'
+import { deleteFileHandle, getFileHandle, listRecentDocuments } from '../db'
 import type { DocumentMeta } from '../db/schema'
+import {
+  fileFromHandle,
+  FileUnavailableError,
+  handleFromDrop,
+  pickPdfWithHandle,
+  supportsFileHandles,
+  type PickedFile,
+} from '../pdf/fileAccess'
 import { openPdf, type OpenedPdf } from '../pdf/openPdf'
 
 const relativeTime = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
@@ -27,18 +35,51 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
     void listRecentDocuments().then(setRecent)
   }, [])
 
-  async function open(file: File | undefined) {
-    if (!file) return
+  async function open(picked: PickedFile | null | undefined) {
+    if (!picked) return
+    const { file } = picked
     if (!isPdf(file)) {
       setError(`${file.name} is not a PDF.`)
       return
     }
     try {
       setError(null)
-      onOpened(await openPdf(file))
+      onOpened(await openPdf(picked))
     } catch (e) {
       setError(`Could not open ${file.name}: ${e instanceof Error ? e.message : String(e)}`)
     }
+  }
+
+  async function pick() {
+    if (!supportsFileHandles) {
+      inputRef.current?.click()
+      return
+    }
+    try {
+      await open(await pickPdfWithHandle())
+    } catch (e) {
+      setError(`Could not open the file picker: ${e instanceof Error ? e.message : String(e)}`)
+    }
+  }
+
+  /** Reopens a library document from its stored file handle, or asks for the file if there is none. */
+  async function reopen(doc: DocumentMeta) {
+    const handle = supportsFileHandles ? await getFileHandle(doc.id) : undefined
+    if (handle) {
+      try {
+        await open({ file: await fileFromHandle(handle), handle })
+        return
+      } catch (e) {
+        if (!(e instanceof FileUnavailableError)) throw e
+        if (e.reason === 'denied') {
+          setError(`${e.message} Click ${doc.fileName} again to retry.`)
+          return
+        }
+        await deleteFileHandle(doc.id)
+        setError(`${e.message} Select ${doc.fileName} again.`)
+      }
+    }
+    await pick()
   }
 
   // Dropping a PDF anywhere in the window opens it (SPEC.md §5.2).
@@ -46,7 +87,9 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
     const onDragOver = (e: DragEvent) => e.preventDefault()
     const onDrop = (e: DragEvent) => {
       e.preventDefault()
-      void open(e.dataTransfer?.files[0])
+      const file = e.dataTransfer?.files[0]
+      const handle = handleFromDrop(e)
+      if (file) void handle.then((h) => open({ file, handle: h }))
     }
     window.addEventListener('dragover', onDragOver)
     window.addEventListener('drop', onDrop)
@@ -62,7 +105,7 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
         <h1 className="font-semibold">OpenGrasp</h1>
         <button
           type="button"
-          onClick={() => inputRef.current?.click()}
+          onClick={() => void pick()}
           className="flex items-center gap-1.5 rounded-md px-2 py-1 text-muted hover:bg-surface hover:text-text"
         >
           <FileUp size={16} aria-hidden />
@@ -74,7 +117,8 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
           accept="application/pdf,.pdf"
           hidden
           onChange={(e) => {
-            void open(e.target.files?.[0])
+            const file = e.target.files?.[0]
+            if (file) void open({ file })
             e.target.value = ''
           }}
         />
@@ -83,16 +127,26 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
       {error && <p className="py-2 text-danger">{error}</p>}
 
       {recent.length > 0 ? (
-        <ul className="divide-y divide-border">
+        <ul className="-mx-2">
           {recent.map((doc) => (
-            <li key={doc.id} className="flex items-baseline justify-between gap-4 py-3">
-              <div className="min-w-0">
-                <p className="truncate">{doc.title ?? doc.fileName}</p>
-                <p className="text-xs text-muted">{timeAgo(doc.lastOpenedAt)}</p>
-              </div>
-              <span className="text-xs text-muted tabular-nums">
-                {Math.round((doc.progress.pageNumber / doc.pageCount) * 100)}%
-              </span>
+            <li key={doc.id}>
+              <button
+                type="button"
+                onClick={() => void reopen(doc)}
+                title={`Open ${doc.fileName}`}
+                className="flex w-full items-baseline justify-between gap-4 rounded-md px-2 py-2.5 text-left hover:bg-surface"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate">{doc.title ?? doc.fileName}</span>
+                  <span className="block truncate text-xs text-muted">
+                    {doc.title ? `${doc.fileName} · ` : ''}
+                    {timeAgo(doc.lastOpenedAt)}
+                  </span>
+                </span>
+                <span className="text-xs text-muted tabular-nums">
+                  {Math.round((doc.progress.pageNumber / doc.pageCount) * 100)}%
+                </span>
+              </button>
             </li>
           ))}
         </ul>
