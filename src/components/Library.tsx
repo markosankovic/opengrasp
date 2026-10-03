@@ -170,7 +170,7 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
                       Remove <span className="font-medium">{doc.title ?? doc.fileName}</span>?
                     </span>
                     <span className="mt-1 block truncate text-xs text-muted">
-                      Its reading position, notes and highlights are deleted. The PDF file is not touched.
+                      Its reading position, notes, highlights and AI conversations are deleted. The PDF file is not touched.
                     </span>
                   </span>
                   <span className="flex shrink-0 items-center gap-2">

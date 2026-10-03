@@ -288,6 +288,7 @@ export default function Reader({ opened, onClose, onProgressSaved }: Props) {
           >
             <AskPanel
               pdf={pdf}
+              documentId={meta.id}
               title={meta.title ?? meta.fileName}
               outline={outline}
               currentPage={currentPage}

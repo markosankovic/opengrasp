@@ -56,6 +56,28 @@ export interface Note {
   updatedAt: number
 }
 
+/** One question and its answer in an Ask AI conversation (SPEC.md §4.9). */
+export interface ConversationTurn {
+  question: string
+  quote?: { text: string; pageNumber: number }
+  /** The full text sent to the model, including page text, so follow-ups resend the same context. */
+  prompt: string
+  answer: string
+  /** "stopped": the reader stopped the answer part-way. Failed answers aren't saved. */
+  status: 'done' | 'stopped'
+  provider: 'gemini' | 'local'
+  model: string
+  createdAt: number
+}
+
+export interface Conversation {
+  id: string
+  documentId: string
+  turns: ConversationTurn[]
+  createdAt: number
+  updatedAt: number
+}
+
 export interface FileHandleEntry {
   documentId: string
   handle: FileSystemFileHandle
@@ -80,5 +102,10 @@ export interface OpenGraspDB extends DBSchema {
   fileHandles: {
     key: string
     value: FileHandleEntry
+  }
+  conversations: {
+    key: string
+    value: Conversation
+    indexes: { documentId: string }
   }
 }

@@ -26,7 +26,7 @@ OpenGrasp is an open-source, local-first Progressive Web App (PWA) for reading P
 ### 1.3 Guiding principles
 
 1. **Local-first and private.** PDFs never leave the device. There is no backend in v1.
-2. **Store metadata, not files.** Only reading state, notes and highlights are persisted.
+2. **Store metadata, not files.** Only reading state, notes, highlights and AI conversations are persisted.
 3. **Minimal, unobtrusive and fast.** The PDF is the interface: controls stay out of the way, nothing animates for its own sake, and every interaction feels instant. No ads or trackers (see §8 and §9).
 4. **Cross-platform.** One installable PWA. v1 targets **desktop** browsers (Chromium, Firefox, Safari on macOS); mobile and tablet support come later.
 5. **AI-ready.** Notes and highlights keep their text context and location, so they can be passed to an LLM later without re-parsing whole books.
@@ -208,6 +208,24 @@ interface Note {
   updatedAt: number;
 }
 
+// Store: conversations  (primary key: id; index: documentId)  — Ask AI (§4.9), DB v3
+interface Conversation {
+  id: string;              // uuid
+  documentId: string;
+  turns: Array<{
+    question: string;
+    quote?: { text: string; pageNumber: number };
+    prompt: string;        // the full text sent, page text included, so follow-ups resend the same context
+    answer: string;        // markdown
+    status: 'done' | 'stopped'; // failed answers aren't saved
+    provider: 'gemini' | 'local';
+    model: string;
+    createdAt: number;
+  }>;
+  createdAt: number;
+  updatedAt: number;       // most recent first in the history list
+}
+
 // Store: fileHandles (Chromium only; primary key: documentId)
 interface FileHandleEntry {
   documentId: string;
@@ -238,6 +256,7 @@ There is no sync in v1. Moving data between devices or browsers, and backing it 
     documents: DocumentMeta[];
     highlights: Highlight[];
     notes: Note[];
+    conversations: Conversation[];
     // fileHandles are device-specific and are never exported
   }
   ```
@@ -367,7 +386,13 @@ An optional panel for asking a language model about what you're reading, e.g. a 
   - System instruction: the document title, page count and current section (from the outline), plus guidance: explain in the document's context and terminology, be concise, use Markdown, say when unsure.
   - Per question: the page number, the selected text, and either the whole page text (default; "Send the whole current page") or the passage around the selection (±600 characters, widened to whole lines).
   - Page text comes from `src/pdf/text.ts`, the shared, cached text-extraction module (§4.5).
-- **Panel:** on the right, 576 px (twice the outline panel), capped at 40% of the window so the page keeps room, overlaying the page on narrow windows. Its open state is remembered like the outline's. The conversation lives in memory while the document is open; persisting it, and saving answers as notes, comes later.
+- **Panel:** on the right, 576 px (twice the outline panel), capped at 40% of the window so the page keeps room, overlaying the page on narrow windows. Its open state is remembered like the outline's.
+- **Saved conversations** (`conversations` store, §4.4):
+  - A conversation is saved per document once an answer finishes, not on every streamed chunk. Stopped answers are kept and marked; failed ones stay on screen but aren't saved.
+  - Opening the panel brings back the document's most recent conversation, unless a question was already asked meanwhile (e.g. "Explain" right after opening). Follow-ups work across providers, since the history is plain text.
+  - "New conversation" starts a fresh one; the previous one stays saved. The history button lists the document's conversations (first question, date, number of questions); click to reopen, trash to delete one, or "Delete all for this document" with an inline confirm.
+  - Removing the document from the library deletes its conversations too. Each answer shows the model that wrote it.
+  - Saving answers as notes comes later.
 - **Rendering answers:** `src/components/Markdown.tsx` handles paragraphs, headings, lists, quotes, fenced code, inline code, bold, italics and `https` links. It builds React elements and never sets HTML, so model output can't inject markup or scripts. This also protects the API key.
 - **Settings** (gear in the panel): a Gemini / Local model switch; questions move to a provider once it connects, so browsing the other tab changes nothing.
   - Gemini: API key (paste-to-connect: pasting a key-shaped value checks it, saves it and switches to the conversation, no button needed), model (listed from the API, text-chat models only, plain `gemini-<version>-flash` first, since variants may have no free-tier quota), "Remember the key on this device".
@@ -425,7 +450,7 @@ Library                              Reader
   - Dropping a PDF anywhere in the window opens it.
   - A drop area at the bottom of the page: a dashed box with a large file icon, "Drop a PDF here", and "or browse your files · PDFs never leave your device". It highlights in the accent color while a file is dragged over the window, and clicking it opens the picker.
   - Selecting a document whose file isn't available prompts for the file and shows its expected name.
-  - A trash icon (shown on hover or keyboard focus, always on devices without hover) removes a document. The row turns into an inline confirm (Escape cancels), because the document's position, notes and highlights are deleted. The PDF file is never touched.
+  - A trash icon (shown on hover or keyboard focus, always on devices without hover) removes a document. The row turns into an inline confirm (Escape cancels), because the document's position, notes, highlights and AI conversations are deleted. The PDF file is never touched.
 - **Reader top bar:**
   - Height 40 px or less. Left: the brace mark (back to the library) and the table-of-contents toggle (`PanelLeft`). Center: the title. Right: page `n / total`, zoom, a notes toggle, and help (`CircleHelp`).
   - It hides automatically after a few seconds of scrolling and comes back on mouse movement near the top or on `Esc`.

@@ -2,7 +2,7 @@
 
 OpenGrasp is an open-source, lightning-fast PWA PDF reader built for deep technical study, featuring local-first metadata storage (IndexedDB), seamless progress tracking, and an extensible architecture designed for AI-powered document exploration.
 
-Your PDFs never leave your device. OpenGrasp stores only metadata: reading position, notes and highlights.
+Your PDFs never leave your device. OpenGrasp stores only metadata: reading position, notes, highlights and AI conversations.
 
 **App:** https://markosankovic.github.io/opengrasp/ · **Spec:** [SPEC.md](SPEC.md)
 
@@ -15,7 +15,7 @@ Your PDFs never leave your device. OpenGrasp stores only metadata: reading posit
 - **Pan a zoomed-in page** by holding `Space` and dragging, dragging with the middle mouse button, or dragging the gray area around the pages.
 - **Table of contents:** a panel on the left lists the document's chapters, marks the one you're in, and jumps straight to a heading.
 - **Works offline** and can be installed as an app.
-- **Ask AI** (optional): select a term or passage and choose **Explain** or **Ask**, or type a question about the page. Answers stream into a panel on the right. Uses Google Gemini with your own API key (free in [Google AI Studio](https://aistudio.google.com/apikey)), or a model on your own computer through [Ollama](https://ollama.com), LM Studio or llama.cpp. Either is called directly from your browser; only your question, the selection and the current page are sent. For Ollama on the published site, start it with `OLLAMA_ORIGINS=https://opengrasp.js.org`.
+- **Ask AI** (optional): select a term or passage and choose **Explain** or **Ask**, or type a question about the page. Answers stream into a panel on the right. Uses Google Gemini with your own API key (free in [Google AI Studio](https://aistudio.google.com/apikey)), or a model on your own computer through [Ollama](https://ollama.com), LM Studio or llama.cpp. Either is called directly from your browser; only your question, the selection and the current page are sent. Conversations are saved per document in your browser, and you can delete them. For Ollama on the published site, start it with `OLLAMA_ORIGINS=https://opengrasp.js.org`.
 - Press **`?`** or the **?** button in the top bar for help and all keyboard shortcuts.
 
 Notes, highlights, find in document and export/import are planned for v1 (see [SPEC.md](SPEC.md)).

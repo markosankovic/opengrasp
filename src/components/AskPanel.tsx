@@ -1,4 +1,4 @@
-import { ArrowUp, Check, Copy, Settings, Square, SquarePen, X } from 'lucide-react'
+import { ArrowUp, Check, Copy, History, Settings, Square, SquarePen, Trash2, X } from 'lucide-react'
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { listGeminiModels, streamGemini, type GeminiModel } from '../ai/gemini'
@@ -13,6 +13,8 @@ import {
   type AiSettings,
 } from '../ai/settings'
 import type { ChatMessage, Quote } from '../ai/types'
+import { deleteConversation, deleteConversations, listConversations, putConversation } from '../db'
+import type { Conversation, ConversationTurn } from '../db/schema'
 import { sectionPath, type OutlineItem } from '../pdf/outline'
 import { pageText, passageAround } from '../pdf/text'
 import Markdown from './Markdown'
@@ -26,19 +28,17 @@ export interface AskRequest {
   question?: string
 }
 
-interface Turn {
+/** A turn on screen: a saved turn, or one still streaming or failed (those two are never saved). */
+interface Turn extends Omit<ConversationTurn, 'status'> {
   id: number
-  question: string
-  quote?: Quote
-  /** The full text sent to the model for this turn, kept so follow-ups resend the same context. */
-  prompt: string
-  answer: string
-  status: 'streaming' | 'done' | 'stopped' | 'error'
+  status: ConversationTurn['status'] | 'streaming' | 'error'
   error?: string
 }
 
 interface Props {
   pdf: PDFDocumentProxy
+  /** Conversations are saved per document (SPEC.md §4.4). */
+  documentId: string
   title: string
   outline: OutlineItem[] | null
   currentPage: number
@@ -71,25 +71,77 @@ function excerpt(text: string, max = 160): string {
 }
 
 /** Right-hand panel for asking an AI model about the document (SPEC.md §4.9): Gemini or a local model server. */
-export default function AskPanel({ pdf, title, outline, currentPage, request, onClose, onDone }: Props) {
+export default function AskPanel({ pdf, documentId, title, outline, currentPage, request, onClose, onDone }: Props) {
   const [settings, setSettings] = useState<AiSettings>(loadSettings)
   const [apiKey, setApiKey] = useState(loadApiKey)
-  const [view, setView] = useState<'chat' | 'settings'>(() => (isReady(loadSettings(), loadApiKey()) ? 'chat' : 'settings'))
+  const [view, setView] = useState<'chat' | 'settings' | 'history'>(() => (isReady(loadSettings(), loadApiKey()) ? 'chat' : 'settings'))
   const [turns, setTurns] = useState<Turn[]>([])
+  /** The saved conversation on screen; null until the first answer of a new one is saved. */
+  const [conversation, setConversation] = useState<Pick<Conversation, 'id' | 'createdAt'> | null>(null)
   const [draft, setDraft] = useState('')
   const [quote, setQuote] = useState<Quote | undefined>()
   const input = useRef<HTMLTextAreaElement>(null)
   const scroller = useRef<HTMLDivElement>(null)
   const nextId = useRef(1)
   const abort = useRef<AbortController | null>(null)
+  const pinned = useRef(true)
   const streaming = turns.at(-1)?.status === 'streaming'
   const ready = isReady(settings, apiKey)
 
   useEffect(() => saveSettings(settings), [settings])
   useEffect(() => () => abort.current?.abort(), [])
 
+  function show(saved: Conversation | null) {
+    // Detach first, so the stopped answer isn't saved into the conversation shown next.
+    const streamingAnswer = abort.current
+    abort.current = null
+    streamingAnswer?.abort()
+    setConversation(saved && { id: saved.id, createdAt: saved.createdAt })
+    setTurns(saved ? saved.turns.map((t) => ({ ...t, id: nextId.current++ })) : [])
+    pinned.current = true
+  }
+
+  // Pick up where the reader left off: the most recent conversation, unless they already asked something meanwhile.
+  const asked = useRef(false)
+  useEffect(() => {
+    let cancelled = false
+    listConversations(documentId).then(
+      ([latest]) => {
+        if (cancelled || !latest || asked.current) return
+        setConversation({ id: latest.id, createdAt: latest.createdAt })
+        setTurns(latest.turns.map((t) => ({ ...t, id: nextId.current++ })))
+      },
+      () => {}, // Nothing saved can be read: start empty.
+    )
+    return () => {
+      cancelled = true
+    }
+  }, [documentId])
+
+  // Save once an answer has finished (not on every streamed chunk). Failed turns stay on screen but aren't saved.
+  const unsaved = useRef(false)
+  useEffect(() => {
+    if (!unsaved.current || streaming || !conversation) return
+    unsaved.current = false
+    const saved = turns
+      .filter((t): t is Turn & { status: ConversationTurn['status'] } => t.status === 'done' || t.status === 'stopped')
+      .map(
+        (t): ConversationTurn => ({
+          question: t.question,
+          quote: t.quote,
+          prompt: t.prompt,
+          answer: t.answer,
+          status: t.status,
+          provider: t.provider,
+          model: t.model,
+          createdAt: t.createdAt,
+        }),
+      )
+    if (saved.length === 0) return
+    void putConversation({ ...conversation, documentId, turns: saved, updatedAt: Date.now() })
+  }, [turns, streaming, conversation, documentId])
+
   // Follow a streaming answer while the reader is at the bottom; leave them be if they scrolled up to read.
-  const pinned = useRef(true)
   useEffect(() => {
     const el = scroller.current
     if (el && pinned.current) el.scrollTop = el.scrollHeight
@@ -112,8 +164,15 @@ export default function AskPanel({ pdf, title, outline, currentPage, request, on
         { role: 'user' as const, text: t.prompt },
         { role: 'model' as const, text: t.answer },
       ])
+    asked.current = true
     const id = nextId.current++
-    setTurns((all) => [...all, { id, question: question.trim(), quote: attached, prompt, answer: '', status: 'streaming' }])
+    const provider = settings.provider
+    const model = provider === 'gemini' ? settings.model : settings.localModel
+    if (!conversation) setConversation({ id: crypto.randomUUID(), createdAt: Date.now() })
+    setTurns((all) => [
+      ...all,
+      { id, question: question.trim(), quote: attached, prompt, answer: '', status: 'streaming', provider, model, createdAt: Date.now() },
+    ])
     setDraft('')
     setQuote(undefined)
     pinned.current = true
@@ -130,12 +189,14 @@ export default function AskPanel({ pdf, title, outline, currentPage, request, on
       })
       const messages: ChatMessage[] = [...history, { role: 'user', text: prompt }]
       const chunks =
-        settings.provider === 'gemini'
-          ? streamGemini({ apiKey, model: settings.model, system, messages, signal: controller.signal })
-          : streamLocal({ baseUrl: settings.localUrl, model: settings.localModel, system, messages, signal: controller.signal })
+        provider === 'gemini'
+          ? streamGemini({ apiKey, model, system, messages, signal: controller.signal })
+          : streamLocal({ baseUrl: settings.localUrl, model, system, messages, signal: controller.signal })
       for await (const chunk of chunks) update((t) => ({ answer: t.answer + chunk }))
+      if (abort.current === controller) unsaved.current = true
       update({ status: 'done' })
     } catch (e) {
+      if (abort.current === controller) unsaved.current = true
       if (controller.signal.aborted) update({ status: 'stopped' })
       else update({ status: 'error', error: e instanceof Error ? e.message : String(e) })
     } finally {
@@ -152,6 +213,7 @@ export default function AskPanel({ pdf, title, outline, currentPage, request, on
   }
   useEffect(() => {
     if (!request) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- send() is the "Explain" action; it sets state only after awaiting the page text
     if (request.question && ready) void send(request.question, request.quote)
     else if (ready) requestAnimationFrame(() => input.current?.focus())
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once per request; send reads current state
@@ -182,19 +244,20 @@ export default function AskPanel({ pdf, title, outline, currentPage, request, on
           )}
         </div>
         {view === 'chat' && turns.length > 0 && (
-          <button
-            type="button"
-            onClick={() => {
-              abort.current?.abort()
-              setTurns([])
-            }}
-            aria-label="New conversation"
-            title="New conversation"
-            className={iconButton}
-          >
+          <button type="button" onClick={() => show(null)} aria-label="New conversation" title="New conversation" className={iconButton}>
             <SquarePen size={15} aria-hidden />
           </button>
         )}
+        <button
+          type="button"
+          onClick={() => setView(view === 'history' ? 'chat' : 'history')}
+          aria-label="Conversations"
+          aria-pressed={view === 'history'}
+          title="Conversations"
+          className={`${iconButton} ${view === 'history' ? 'bg-surface text-text' : ''}`}
+        >
+          <History size={15} aria-hidden />
+        </button>
         <button
           type="button"
           onClick={() => setView(view === 'settings' && ready ? 'chat' : 'settings')}
@@ -210,7 +273,17 @@ export default function AskPanel({ pdf, title, outline, currentPage, request, on
         </button>
       </header>
 
-      {view === 'settings' ? (
+      {view === 'history' ? (
+        <ConversationList
+          documentId={documentId}
+          currentId={conversation?.id}
+          onOpen={(saved) => {
+            show(saved)
+            setView(ready ? 'chat' : 'settings')
+          }}
+          onDeleted={(ids) => conversation && ids.includes(conversation.id) && show(null)}
+        />
+      ) : view === 'settings' ? (
         <AiSettingsForm
           settings={settings}
           apiKey={apiKey}
@@ -342,6 +415,7 @@ function TurnView({ turn }: { turn: Turn }) {
         {turn.status === 'error' && <p className="mt-2 text-danger">{turn.error}</p>}
         {turn.status === 'stopped' && <p className="mt-2 text-xs text-muted">Stopped.</p>}
         {turn.status === 'done' && (
+          <div className="mt-2 flex items-center gap-2 opacity-0 group-hover/answer:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100">
           <button
             type="button"
             onClick={() => {
@@ -352,11 +426,127 @@ function TurnView({ turn }: { turn: Turn }) {
             }}
             aria-label="Copy answer"
             title="Copy answer"
-            className="mt-2 -ml-1 rounded-md p-1 text-muted opacity-0 group-hover/answer:opacity-100 hover:text-text focus-visible:opacity-100"
+            className="-ml-1 rounded-md p-1 text-muted hover:text-text"
           >
             {copied ? <Check size={14} aria-hidden /> : <Copy size={14} aria-hidden />}
           </button>
+          <span className="text-xs text-muted">{turn.model}</span>
+          </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+const dateTime = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+
+/** This document's saved conversations: open one, delete one, or delete them all. */
+function ConversationList({
+  documentId,
+  currentId,
+  onOpen,
+  onDeleted,
+}: {
+  documentId: string
+  currentId?: string
+  onOpen: (conversation: Conversation) => void
+  onDeleted: (ids: string[]) => void
+}) {
+  const [conversations, setConversations] = useState<Conversation[] | null>(null)
+  const [confirmingAll, setConfirmingAll] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    listConversations(documentId).then(
+      (list) => !cancelled && setConversations(list),
+      (e: unknown) => !cancelled && setError(`Could not load conversations: ${e instanceof Error ? e.message : String(e)}`),
+    )
+    return () => {
+      cancelled = true
+    }
+  }, [documentId])
+
+  async function remove(id: string) {
+    await deleteConversation(id)
+    setConversations((list) => list?.filter((c) => c.id !== id) ?? null)
+    onDeleted([id])
+  }
+
+  async function removeAll() {
+    const ids = conversations?.map((c) => c.id) ?? []
+    await deleteConversations(documentId)
+    setConversations([])
+    setConfirmingAll(false)
+    onDeleted(ids)
+  }
+
+  if (error) return <p className="p-4 text-danger">{error}</p>
+  if (!conversations) return null
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      {conversations.length === 0 ? (
+        <p className="px-4 pt-10 text-center text-muted">No saved conversations for this document yet.</p>
+      ) : (
+        <ul className="min-h-0 flex-1 overflow-y-auto p-2">
+          {conversations.map((c) => (
+            <li key={c.id} className="group/item flex items-center rounded-lg hover:bg-surface">
+              <button
+                type="button"
+                onClick={() => onOpen(c)}
+                aria-current={c.id === currentId || undefined}
+                className="min-w-0 flex-1 px-3 py-2.5 text-left"
+              >
+                <span className={`block truncate ${c.id === currentId ? 'font-medium' : ''}`}>
+                  {excerpt(c.turns[0]?.question ?? '', 120)}
+                </span>
+                <span className="mt-0.5 block text-xs text-muted">
+                  {dateTime.format(c.updatedAt)} · {c.turns.length} {c.turns.length === 1 ? 'question' : 'questions'}
+                  {c.id === currentId && ' · open'}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => void remove(c.id)}
+                aria-label="Delete conversation"
+                title="Delete conversation"
+                className="mr-2 inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted opacity-0 group-hover/item:opacity-100 hover:text-danger focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
+              >
+                <Trash2 size={14} aria-hidden />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="mt-auto flex shrink-0 flex-col gap-3 border-t border-border p-4">
+        {conversations.length > 0 &&
+          (confirmingAll ? (
+            <div className="flex items-center gap-2" onKeyDown={(e) => e.key === 'Escape' && setConfirmingAll(false)}>
+              <span className="min-w-0 flex-1">
+                {conversations.length === 1 ? 'Delete this conversation?' : `Delete all ${conversations.length} conversations?`}
+              </span>
+              <button type="button" onClick={() => setConfirmingAll(false)} className="btn text-muted hover:bg-surface">
+                <span>Cancel</span>
+              </button>
+              <button type="button" onClick={() => void removeAll()} autoFocus className="btn bg-danger text-white hover:opacity-90">
+                <span>Delete</span>
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmingAll(true)}
+              className="btn self-start text-muted hover:bg-surface hover:text-danger"
+            >
+              <Trash2 size={14} aria-hidden />
+              <span>Delete all for this document</span>
+            </button>
+          ))}
+        <p className="text-xs leading-relaxed text-muted">
+          Conversations are saved in this browser only. Removing the PDF from the library deletes them too.
+        </p>
       </div>
     </div>
   )

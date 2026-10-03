@@ -1,11 +1,11 @@
 import { openDB, type IDBPDatabase } from 'idb'
 import { slugify, slugSource } from '../slug'
-import type { DocumentMeta, OpenGraspDB } from './schema'
+import type { Conversation, DocumentMeta, OpenGraspDB } from './schema'
 
 // The only module that talks to IndexedDB (SPEC.md §3.1). Components use these functions, never idb directly.
 
 const DB_NAME = 'opengrasp'
-const DB_VERSION = 2
+const DB_VERSION = 3
 
 let dbPromise: Promise<IDBPDatabase<OpenGraspDB>> | undefined
 
@@ -39,6 +39,10 @@ export function getDB(): Promise<IDBPDatabase<OpenGraspDB>> {
           used.add(slug)
           await cursor.update({ ...doc, slug })
         }
+      }
+      if (oldVersion < 3) {
+        // v3: saved Ask AI conversations.
+        db.createObjectStore('conversations', { keyPath: 'id' }).createIndex('documentId', 'documentId')
       }
     },
     // Another tab runs older code with an older schema open; the upgrade waits until it closes or reloads.
@@ -110,16 +114,38 @@ export async function deleteFileHandle(documentId: string): Promise<void> {
   await (await getDB()).delete('fileHandles', documentId)
 }
 
-/** Removes a document and everything stored for it (progress, highlights, notes, file handle). The PDF file is untouched. */
+/** Removes a document and everything stored for it (progress, highlights, notes, conversations, file handle). The PDF file is untouched. */
 export async function removeDocument(id: string): Promise<void> {
-  const tx = (await getDB()).transaction(['documents', 'highlights', 'notes', 'fileHandles'], 'readwrite')
+  const tx = (await getDB()).transaction(['documents', 'highlights', 'notes', 'conversations', 'fileHandles'], 'readwrite')
   const highlightKeys = await tx.objectStore('highlights').index('documentId').getAllKeys(id)
   const noteKeys = await tx.objectStore('notes').index('documentId').getAllKeys(id)
+  const conversationKeys = await tx.objectStore('conversations').index('documentId').getAllKeys(id)
   await Promise.all([
     tx.objectStore('documents').delete(id),
     tx.objectStore('fileHandles').delete(id),
     ...highlightKeys.map((key) => tx.objectStore('highlights').delete(key)),
     ...noteKeys.map((key) => tx.objectStore('notes').delete(key)),
+    ...conversationKeys.map((key) => tx.objectStore('conversations').delete(key)),
     tx.done,
   ])
+}
+
+/** A document's saved conversations, most recently updated first. */
+export async function listConversations(documentId: string): Promise<Conversation[]> {
+  const all = await (await getDB()).getAllFromIndex('conversations', 'documentId', documentId)
+  return all.sort((a, b) => b.updatedAt - a.updatedAt)
+}
+
+export async function putConversation(conversation: Conversation): Promise<void> {
+  await (await getDB()).put('conversations', conversation)
+}
+
+export async function deleteConversation(id: string): Promise<void> {
+  await (await getDB()).delete('conversations', id)
+}
+
+export async function deleteConversations(documentId: string): Promise<void> {
+  const tx = (await getDB()).transaction('conversations', 'readwrite')
+  const keys = await tx.store.index('documentId').getAllKeys(documentId)
+  await Promise.all([...keys.map((key) => tx.store.delete(key)), tx.done])
 }
