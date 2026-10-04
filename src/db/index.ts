@@ -115,15 +115,18 @@ export async function deleteFileHandle(documentId: string): Promise<void> {
   await (await getDB()).delete('fileHandles', documentId)
 }
 
-/** Removes a document and everything stored for it (progress, highlights, notes, conversations, file handle). The PDF file is untouched. */
+/**
+ * Removes a document and everything stored for it (progress, highlights, notes, conversations). The PDF file is
+ * untouched. The file handle is kept: it can't be exported, so it is what lets a document that comes back through
+ * an import reopen with one click (SPEC.md §4.3).
+ */
 export async function removeDocument(id: string): Promise<void> {
-  const tx = (await getDB()).transaction(['documents', 'highlights', 'notes', 'conversations', 'fileHandles'], 'readwrite')
+  const tx = (await getDB()).transaction(['documents', 'highlights', 'notes', 'conversations'], 'readwrite')
   const highlightKeys = await tx.objectStore('highlights').index('documentId').getAllKeys(id)
   const noteKeys = await tx.objectStore('notes').index('documentId').getAllKeys(id)
   const conversationKeys = await tx.objectStore('conversations').index('documentId').getAllKeys(id)
   await Promise.all([
     tx.objectStore('documents').delete(id),
-    tx.objectStore('fileHandles').delete(id),
     ...highlightKeys.map((key) => tx.objectStore('highlights').delete(key)),
     ...noteKeys.map((key) => tx.objectStore('notes').delete(key)),
     ...conversationKeys.map((key) => tx.objectStore('conversations').delete(key)),

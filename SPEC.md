@@ -158,7 +158,7 @@ Any change to the file's contents produces a new `id`, for example a new revisio
 - **Progressive enhancement (Chromium, implemented):** files opened through the picker (`showOpenFilePicker`) or by drag-and-drop (`DataTransferItem.getAsFileSystemHandle()`) keep a `FileSystemFileHandle` in the `fileHandles` store.
   - Clicking the library item reopens the file directly. If read permission has lapsed (e.g. after a browser restart), the click triggers a one-line browser prompt. Chrome can remember the grant ("Allow on every visit"), especially for the installed PWA.
   - If the file was moved, renamed or deleted, the stale handle is removed, a one-line message is shown and the picker opens.
-  - A handle is device-specific and is never exported (§4.6).
+  - A handle is device-specific and is never exported (§4.6). Removing a document from the library keeps its handle, so if the document comes back through an import it still reopens with one click. Opening the file again replaces the handle.
 - **PWA file handling (Chromium desktop, later):** a `file_handlers` entry in the manifest registers OpenGrasp as an app that can open `.pdf` files from the operating system.
 
 ### 4.4 Data model (IndexedDB)
