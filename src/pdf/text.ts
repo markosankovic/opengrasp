@@ -1,28 +1,52 @@
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 
-// Plain-text extraction (SPEC.md §4.5). The one place page text comes from, for AI context now and find later.
+// Plain-text extraction (SPEC.md §4.5). The one place page text comes from, for AI context and find.
 
-const cache = new WeakMap<PDFDocumentProxy, Map<number, Promise<string>>>()
+/** A text item of a page, in content-stream order: the same order and strings as the text layer's spans. */
+export interface TextItem {
+  str: string
+  hasEOL: boolean
+  /** Origin of the item (baseline start) in PDF user space. */
+  x: number
+  y: number
+}
 
-/** The text of a page in reading order, with line breaks where the PDF marks them. Cached per document. */
-export function pageText(pdf: PDFDocumentProxy, pageNumber: number): Promise<string> {
+const itemCache = new WeakMap<PDFDocumentProxy, Map<number, Promise<TextItem[]>>>()
+const textCache = new WeakMap<PDFDocumentProxy, Map<number, Promise<string>>>()
+
+function cached<T>(cache: WeakMap<PDFDocumentProxy, Map<number, Promise<T>>>, pdf: PDFDocumentProxy, page: number, load: () => Promise<T>): Promise<T> {
   let pages = cache.get(pdf)
   if (!pages) cache.set(pdf, (pages = new Map()))
-  let text = pages.get(pageNumber)
-  if (!text) {
-    text = pdf
+  let value = pages.get(page)
+  if (!value) pages.set(page, (value = load()))
+  return value
+}
+
+/** The text items of a page. Cached per document, so find and AI context extract each page only once. */
+export function pageItems(pdf: PDFDocumentProxy, pageNumber: number): Promise<TextItem[]> {
+  return cached(itemCache, pdf, pageNumber, () =>
+    pdf
       .getPage(pageNumber)
       .then((page) => page.getTextContent())
       .then(({ items }) =>
-        items
-          .map((item) => ('str' in item ? item.str + (item.hasEOL ? '\n' : '') : ''))
-          .join('')
-          .replace(/[ \t]+/g, ' ')
-          .trim(),
-      )
-    pages.set(pageNumber, text)
-  }
-  return text
+        items.flatMap((item) =>
+          'str' in item ? [{ str: item.str, hasEOL: item.hasEOL, x: item.transform[4] as number, y: item.transform[5] as number }] : [],
+        ),
+      ),
+  )
+}
+
+/** The text of a page in reading order, with line breaks where the PDF marks them. Cached per document. */
+export function pageText(pdf: PDFDocumentProxy, pageNumber: number): Promise<string> {
+  return cached(textCache, pdf, pageNumber, () =>
+    pageItems(pdf, pageNumber).then((items) =>
+      items
+        .map((item) => item.str + (item.hasEOL ? '\n' : ''))
+        .join('')
+        .replace(/[ \t]+/g, ' ')
+        .trim(),
+    ),
+  )
 }
 
 /**

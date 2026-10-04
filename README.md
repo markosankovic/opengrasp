@@ -19,7 +19,7 @@ Your PDFs never leave your device. OpenGrasp stores only metadata: reading posit
 - **Notes:** the Notes tab next to Ask (`N`, `c` for a new note) holds Markdown notes for a page or the whole document. Click a note to edit it; the toolbar or `Ctrl+B` / `I` / `E` / `K` add bold, italics, code and links; `Ctrl+Enter` saves, `Esc` cancels. Any AI answer can be saved as a note with one click.
 - Press **`?`** or the **?** button in the top bar for help and all keyboard shortcuts.
 
-Highlights, find in document and export/import are planned for v1 (see [SPEC.md](SPEC.md)).
+Highlights and export/import are planned for v1 (see [SPEC.md](SPEC.md)).
 
 ### Keyboard shortcuts
 
@@ -32,13 +32,14 @@ Highlights, find in document and export/import are planned for v1 (see [SPEC.md]
 | `n` / `p`, `→` / `←`, `PgDn` / `PgUp` | Next / previous page |
 | `Home` / `End` | First / last page |
 | `g` | Go to page |
+| `/` / `Ctrl+F` | Find in document; `Enter` / `Shift+Enter` for the next / previous match |
 | `+` / `-` / `0` | Zoom in / out / fit width (also `Ctrl` + wheel) |
 | `t` | Table of contents |
 | `a` | Ask AI about the selection, or open / close the Ask panel |
 | `N` | Notes (Shift+N) |
 | `c` | New note on the current page |
 | `b` | Back to the library |
-| `Esc` | Close the table of contents or help |
+| `Esc` | Close the find bar, table of contents or help |
 | `?` | Help |
 
 ## Support

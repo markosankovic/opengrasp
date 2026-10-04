@@ -1,6 +1,7 @@
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 import { useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type Ref } from 'react'
 import type { DocumentMeta, Zoom } from '../db/schema'
+import type { FindResults } from '../pdf/find'
 import {
   applyAnchor,
   captureAnchor,
@@ -37,6 +38,8 @@ export interface ViewerState {
 export interface ViewerHandle {
   /** Scrolls to a page, or to a point on it (fraction of its height from the top, e.g. an outline destination). */
   goToPage(page: number, fy?: number | null): void
+  /** Scrolls a point on a page (fractions of its width / height) into view, unless it's already well inside it. */
+  reveal(page: number, fx: number, fy: number): void
   /** Next (+1) / previous (-1) page, relative to the page currently shown. */
   stepPage(delta: 1 | -1): void
   scrollBy(dy: number): void
@@ -50,6 +53,7 @@ interface Props {
   pdf: PDFDocumentProxy
   initialProgress: DocumentMeta['progress']
   onStateChange: (state: ViewerState) => void
+  find?: FindResults | null
   ref?: Ref<ViewerHandle>
 }
 
@@ -75,7 +79,7 @@ function mostVisiblePage(layout: Layout, top: number, height: number): number {
   return best
 }
 
-export default function Viewer({ pdf, initialProgress, onStateChange, ref }: Props) {
+export default function Viewer({ pdf, initialProgress, onStateChange, find, ref }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [queue] = useState(() => new RenderQueue())
   const [sizes, setSizes] = useState<PageSize[] | null>(null)
@@ -161,8 +165,22 @@ export default function Viewer({ pdf, initialProgress, onStateChange, ref }: Pro
     el.scrollTop = fy ? current.tops[i]! + fy * current.heights[i]! - PADDING : current.tops[i]! - GAP / 2
   }
 
+  function reveal(page: number, fx: number, fy: number) {
+    const el = containerRef.current
+    const current = latest.current.layout
+    if (!el || !current) return
+    const i = Math.min(Math.max(page, 1), current.tops.length) - 1
+    const x = current.lefts[i]! + fx * current.widths[i]!
+    const y = current.tops[i]! + fy * current.heights[i]!
+    // The margin keeps a match clear of the find bar, which floats over the top of the viewer.
+    const margin = 64
+    if (y < el.scrollTop + margin || y > el.scrollTop + el.clientHeight - margin) el.scrollTop = y - el.clientHeight / 3
+    if (x < el.scrollLeft + margin || x > el.scrollLeft + el.clientWidth - margin) el.scrollLeft = x - el.clientWidth / 3
+  }
+
   useImperativeHandle(ref, () => ({
     goToPage,
+    reveal,
     stepPage(delta) {
       // Read the live scroll position: React state may lag behind rapid key presses.
       const el = containerRef.current
@@ -287,6 +305,8 @@ export default function Viewer({ pdf, initialProgress, onStateChange, ref }: Pro
               width={layout.widths[p - 1]!}
               height={layout.heights[p - 1]!}
               queue={queue}
+              matches={find?.byPage.get(p)}
+              currentMatch={find?.current?.page === p ? find.current.index : -1}
             />
           ))}
         </div>

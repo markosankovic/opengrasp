@@ -71,3 +71,21 @@
     top: 0;
   }
 }
+
+/* Find matches (SPEC.md §4.7), drawn by PdfPage between the canvas and the text layer. */
+.findLayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+
+  > div {
+    position: absolute;
+    border-radius: 2px;
+    background: var(--color-find-match);
+    mix-blend-mode: multiply;
+  }
+
+  > .current {
+    background: var(--color-find-current);
+  }
+}

@@ -21,6 +21,10 @@
   --color-hl-green: rgb(74 222 128 / 0.4);
   --color-hl-blue: rgb(96 165 250 / 0.4);
   --color-hl-pink: rgb(244 114 182 / 0.4);
+
+  /* Find matches; pages are always white, so no dark variants. */
+  --color-find-match: rgb(250 204 21 / 0.45);
+  --color-find-current: rgb(249 115 22 / 0.6);
 }
 
 /* Dark: follows the OS unless a theme is chosen explicitly via <html data-theme="…">. */

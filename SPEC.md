@@ -340,7 +340,8 @@ There is no sync in v1. Moving data between devices or browsers, and backing it 
 - The outline from `getOutline()` opens in a panel on the left (§5.2). Destinations are resolved to a page and, when the destination names one, a position on it, so an entry scrolls to its heading rather than the page top.
 
 **Find in document (MVP):**
-- `/` opens a small find bar.
+- `/` (also `Ctrl/⌘+F`, since the browser's own find can't see pages that aren't mounted) opens a small find bar; a short selection becomes the query.
+- Matching ignores case and differences in whitespace, so a phrase broken across lines still matches. The scan starts at the current page and wraps around.
 - Each page's text comes from `page.getTextContent()`, extracted lazily and kept in memory. This uses the same text-extraction module as §4.5.
 - Matches are drawn in the `HighlightLayer` style, and `Enter` / `Shift+Enter` jump to the next / previous match.
 
@@ -574,7 +575,7 @@ All colors are CSS custom properties defined once in Tailwind v4's `@theme`. Com
 | `a` | Ask AI about the selection, or open / close the Ask panel |
 | `N` (`Shift+N`) | Toggle the Notes tab of the right-hand panel |
 | `c` | New note on the current page (opens the Notes tab; focuses the new note already being written instead of starting another) |
-| `/` | Search (document; later notes) |
+| `/` (`Ctrl/⌘+F`) | Find in document (later also notes) |
 | `Esc` | Close popover or panel; show the top bar |
 | `?` | Help: what the app does, how to use it, and the shortcuts (also the `?` button right of Load PDF in the library header, and at the right end of the reader bar) |
 

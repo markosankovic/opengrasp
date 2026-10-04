@@ -1,8 +1,9 @@
-import { MessagesSquare, NotebookPen, PanelLeft, ZoomIn, ZoomOut } from 'lucide-react'
+import { MessagesSquare, NotebookPen, PanelLeft, Search, ZoomIn, ZoomOut } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { putNote, saveProgress } from '../db'
 import type { DocumentMeta } from '../db/schema'
 import { shortcutsBlocked } from '../keyboard'
+import type { FindResults, PageMatch } from '../pdf/find'
 import type { OpenedPdf } from '../pdf/openPdf'
 import { loadOutline, type OutlineItem } from '../pdf/outline'
 import { pdfSelection } from '../viewer/selection'
@@ -10,6 +11,7 @@ import Viewer, { type ViewerHandle, type ViewerState } from '../viewer/Viewer'
 import { noteFromAnswer } from '../ai/note'
 import type { Quote } from '../ai/types'
 import AskPanel, { type AskRequest } from './AskPanel'
+import FindBar from './FindBar'
 import HelpButton from './Help'
 import NotesPanel, { type NotesSignal } from './NotesPanel'
 import PanelTabs, { type SidePanel } from './PanelTabs'
@@ -85,6 +87,11 @@ export default function Reader({ opened, onClose, onProgressSaved }: Props) {
   const askId = useRef(0)
   const [notesSignal, setNotesSignal] = useState<NotesSignal>({ revision: 0 })
   const [newNoteRequest, setNewNoteRequest] = useState(0)
+  const [findOpen, setFindOpen] = useState(false)
+  // Kept while the bar is closed, so reopening it offers the last search again.
+  const [findQuery, setFindQuery] = useState('')
+  const [find, setFind] = useState<FindResults | null>(null)
+  const findInput = useRef<HTMLInputElement>(null)
 
   useEffect(() => writeValue(SIDE_PANEL_KEY, side ?? ''), [side])
   if (side && !mounted[side]) setMounted({ ...mounted, [side]: true })
@@ -115,6 +122,28 @@ export default function Reader({ opened, onClose, onProgressSaved }: Props) {
     setSide('notes')
     setNotesSignal((s) => ({ revision: s.revision + 1, focusId: id }))
   }, [])
+
+  /** Opens the find bar, or focuses it; a short selection becomes the query, as in browsers. */
+  const openFind = useCallback(() => {
+    const selection = pdfSelection()?.text
+    if (selection && selection.length <= 200 && !selection.includes('\n')) setFindQuery(selection)
+    setFindOpen(true)
+    findInput.current?.select()
+  }, [])
+
+  const closeFind = useCallback(() => {
+    setFindOpen(false)
+    viewer.current?.focus()
+  }, [])
+
+  const revealMatch = useCallback(
+    async (page: number, match: PageMatch) => {
+      const viewport = (await pdf.getPage(page)).getViewport({ scale: 1 })
+      const [x, y] = viewport.convertToViewportPoint(match.x, match.y) as [number, number]
+      viewer.current?.reveal(page, x / viewport.width, y / viewport.height)
+    },
+    [pdf],
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -188,7 +217,7 @@ export default function Reader({ opened, onClose, onProgressSaved }: Props) {
       if (!v || shortcutsBlocked(e) || e.altKey) return
       const mod = e.ctrlKey || e.metaKey
       const actions: Record<string, () => void> = mod
-        ? { '=': v.zoomIn, '+': v.zoomIn, '-': v.zoomOut, '0': () => v.setZoom('page-width') }
+        ? { '=': v.zoomIn, '+': v.zoomIn, '-': v.zoomOut, '0': () => v.setZoom('page-width'), f: openFind }
         : {
             n: () => v.stepPage(1),
             ArrowRight: () => v.stepPage(1),
@@ -223,7 +252,11 @@ export default function Reader({ opened, onClose, onProgressSaved }: Props) {
           setSide('notes')
           setNewNoteRequest((n) => n + 1)
         }
-        actions.Escape = () => setOutlineOpen(false)
+        actions['/'] = openFind
+        actions.Escape = () => {
+          setOutlineOpen(false)
+          closeFind()
+        }
         actions.b = () => {
           flush()
           onClose()
@@ -236,7 +269,7 @@ export default function Reader({ opened, onClose, onProgressSaved }: Props) {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [pdf.numPages, flush, onClose, ask, toggleSide])
+  }, [pdf.numPages, flush, onClose, ask, toggleSide, openFind, closeFind])
 
   const button = 'rounded-md p-1.5 text-muted hover:bg-surface hover:text-text'
 
@@ -303,6 +336,16 @@ export default function Reader({ opened, onClose, onProgressSaved }: Props) {
           <div className="flex items-center gap-1">
             <button
               type="button"
+              onClick={() => (findOpen ? closeFind() : openFind())}
+              aria-label="Find in document"
+              aria-pressed={findOpen}
+              title="Find in document (/)"
+              className={`${button} ${findOpen ? 'bg-surface text-text' : ''}`}
+            >
+              <Search size={16} aria-hidden />
+            </button>
+            <button
+              type="button"
               onClick={() => toggleSide('ask')}
               aria-label="Ask AI"
               aria-pressed={side === 'ask'}
@@ -338,7 +381,7 @@ export default function Reader({ opened, onClose, onProgressSaved }: Props) {
             <Outline items={outline} currentPage={currentPage} onSelect={selectOutlineItem} />
           </nav>
         )}
-        <Viewer ref={viewer} pdf={pdf} initialProgress={meta.progress} onStateChange={onStateChange} />
+        <Viewer ref={viewer} pdf={pdf} initialProgress={meta.progress} onStateChange={onStateChange} find={find} />
         {side && <div className="absolute inset-0 z-10 bg-black/20 md:hidden" onClick={() => setSide(null)} aria-hidden />}
         {(mounted.ask || mounted.notes) && (
           <aside
@@ -381,6 +424,18 @@ export default function Reader({ opened, onClose, onProgressSaved }: Props) {
               </div>
             )}
           </aside>
+        )}
+        {findOpen && (
+          <FindBar
+            ref={findInput}
+            pdf={pdf}
+            currentPage={currentPage}
+            query={findQuery}
+            onQueryChange={setFindQuery}
+            onResults={setFind}
+            onReveal={revealMatch}
+            onClose={closeFind}
+          />
         )}
       </div>
       <SelectionPopover onExplain={(quote) => ask(quote, 'Explain this.')} onAsk={(quote) => ask(quote)} />

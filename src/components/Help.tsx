@@ -15,12 +15,13 @@ const READER_SHORTCUTS: [keys: string[], action: string][] = [
   [['n', 'p'], 'Next / previous page (also → ←, PgDn PgUp)'],
   [['Home', 'End'], 'First / last page'],
   [['g'], 'Go to page'],
+  [['/'], 'Find in document (also Ctrl+F); Enter / Shift+Enter for next / previous'],
   [['+', '-'], 'Zoom in / out (also Ctrl + wheel)'],
   [['0'], 'Fit width'],
   [['t'], 'Table of contents'],
   [['a'], 'Ask AI about the selection, or open the Ask panel'],
   [['b'], 'Back to the library'],
-  [['Esc'], 'Close the table of contents'],
+  [['Esc'], 'Close the find bar and the table of contents'],
   [['?'], 'This help'],
 ]
 
