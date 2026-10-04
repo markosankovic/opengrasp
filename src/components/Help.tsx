@@ -95,6 +95,13 @@ const FEATURES: [title: string, text: ReactNode][] = [
       and the text around it (or the whole page, if turned on) and the conversation so far.
     </>,
   ],
+  [
+    'Move to another device',
+    <>
+      Export saves your reading positions, notes, highlights and conversations to a file; Import merges it into the
+      library on another browser or device. Open the same PDF there and everything is back.
+    </>,
+  ],
   ['Works offline', <>Install it as an app from the browser's address bar.</>],
 ]
 

@@ -249,7 +249,7 @@ The AI features (§4.9) build on the following, which hold for the rest of the a
 
 There is no sync in v1. Moving data between devices or browsers, and backing it up, is done manually.
 
-- **Export:** a button in Library settings downloads `opengrasp-export-YYYY-MM-DD.json`:
+- **Export:** the `Download` icon button in the library header (disabled while the library is empty) downloads `opengrasp-export-YYYY-MM-DD.json`:
   ```ts
   interface ExportFile {
     format: 'opengrasp-export';
@@ -263,8 +263,10 @@ There is no sync in v1. Moving data between devices or browsers, and backing it 
   }
   ```
 - **Import:**
-  - Select a file, then validate `format` and `version`. Unknown future versions are rejected with a clear message.
-  - Records are merged by `id`. If a record exists on both sides, the one with the newer `updatedAt` wins; for documents the comparison uses `progress.updatedAt`, and `lastOpenedAt` keeps the maximum of the two.
+  - The `Upload` icon button in the library header picks a file; dropping a `.json` file on the library imports it too.
+  - Validate `format`, `version` and the fields the app relies on. Unknown future versions and damaged files are rejected with a clear message, and nothing is written.
+  - Records are merged by `id`. If a record exists on both sides, the one with the newer `updatedAt` wins; for documents the comparison uses `progress.updatedAt`, and `lastOpenedAt` keeps the maximum of the two. A document that already exists keeps its local slug, so its links stay valid; a new document whose slug is taken gets `-2`, `-3`, ….
+  - The merge runs in one transaction, so a failed import changes nothing.
   - Nothing is ever deleted by an import.
   - Afterwards the app shows a one-line summary (e.g. "Imported 3 documents, 41 highlights, 12 notes").
 - PDFs aren't part of the export. Because the IDs are content hashes, metadata reattaches automatically when the same PDF is opened on the other device.
@@ -448,9 +450,9 @@ Library                              Reader
 ```
 
 - **Library:**
-  - Two edges: the header (logo, Load PDF, help), the row backgrounds (hover, remove confirm) and the drop area border share the outer content edge; "Recent" and the row text are inset on a shared inner edge. Nothing reaches outside the column, so it lines up whether or not a row is highlighted.
+  - Two edges: the header (logo, import, export, Load PDF, help), the row backgrounds (hover, remove confirm) and the drop area border share the outer content edge; "Recent" and the row text are inset on a shared inner edge. Nothing reaches outside the column, so it lines up whether or not a row is highlighted.
   - A plain list with the title, progress percentage and relative last-opened time. The first nine rows show their `1`–`9` key in a small key cap before the title (hidden on devices without hover); later rows keep an empty slot so titles stay aligned.
-  - Dropping a PDF anywhere in the window opens it.
+  - Dropping a PDF anywhere in the window opens it; dropping an export file imports it (§4.6).
   - A drop area at the bottom of the page: a dashed box with a large file icon, "Drop a PDF here", and "or browse your files · PDFs never leave your device". It highlights in the accent color while a file is dragged over the window, and clicking it opens the picker.
   - Selecting a document whose file isn't available prompts for the file and shows its expected name.
   - A trash icon (shown on hover or keyboard focus, always on devices without hover) removes a document. The row turns into an inline confirm (Escape cancels), because the document's position, notes, highlights and AI conversations are deleted. The PDF file is never touched.

@@ -1,6 +1,7 @@
-import { ChevronDown, FileUp, Trash2 } from 'lucide-react'
+import { ChevronDown, Download, FileUp, Trash2, Upload } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { listRecentDocuments, removeDocument } from '../db'
+import { exportAll, importAll, listRecentDocuments, removeDocument, type ImportCounts } from '../db'
+import { ExportFileError, exportFileName, parseExportFile } from '../db/exportFile'
 import type { DocumentMeta } from '../db/schema'
 import { shortcutsBlocked } from '../keyboard'
 import { handleFromDrop, pickPdf, type PickedFile } from '../pdf/fileAccess'
@@ -23,9 +24,58 @@ function isPdf(file: File): boolean {
   return file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
 }
 
+function isJson(file: File): boolean {
+  return file.type === 'application/json' || file.name.toLowerCase().endsWith('.json')
+}
+
+/** Opens a picker for an export file. Returns null if the user cancels. */
+function pickExportFile(): Promise<File | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'application/json,.json'
+    input.hidden = true
+    const done = (file: File | null) => {
+      input.remove()
+      resolve(file)
+    }
+    input.addEventListener('change', () => done(input.files?.[0] ?? null), { once: true })
+    input.addEventListener('cancel', () => done(null), { once: true })
+    document.body.append(input)
+    input.click()
+  })
+}
+
+function download(fileName: string, text: string) {
+  const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }))
+  const a = document.createElement('a')
+  a.href = url
+  a.download = fileName
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+/** "Imported 3 documents, 41 highlights and 12 notes." */
+function importSummary(counts: ImportCounts): string {
+  const parts = (
+    [
+      [counts.documents, 'document'],
+      [counts.highlights, 'highlight'],
+      [counts.notes, 'note'],
+      [counts.conversations, 'conversation'],
+    ] as const
+  )
+    .filter(([n]) => n > 0)
+    .map(([n, noun]) => `${n} ${noun}${n === 1 ? '' : 's'}`)
+  if (parts.length === 0) return 'Nothing to import: the library already has everything in this file.'
+  const list = parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}`
+  return `Imported ${list}.`
+}
+
 export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) => void }) {
   const [recent, setRecent] = useState<DocumentMeta[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const [confirmingRemove, setConfirmingRemove] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
   const [hiddenBelow, setHiddenBelow] = useState(0)
@@ -41,12 +91,17 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
   async function open(picked: PickedFile | null | undefined) {
     if (!picked) return
     const { file } = picked
+    if (isJson(file)) {
+      await importFile(file)
+      return
+    }
     if (!isPdf(file)) {
       setError(`${file.name} is not a PDF.`)
       return
     }
     try {
       setError(null)
+      setNotice(null)
       onOpened(await openPdf(picked))
     } catch (e) {
       setError(`Could not open ${file.name}: ${e instanceof Error ? e.message : String(e)}`)
@@ -92,6 +147,30 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   })
+
+  /** Downloads everything but the PDFs and file handles as one JSON file (SPEC.md §4.6). */
+  async function exportLibrary() {
+    try {
+      download(exportFileName(), JSON.stringify(await exportAll(), null, 2))
+    } catch (e) {
+      setError(`Could not export the library: ${e instanceof Error ? e.message : String(e)}`)
+    }
+  }
+
+  /** Merges an export file into the library; nothing is deleted (SPEC.md §4.6). */
+  async function importFile(file: File | null) {
+    if (!file) return
+    setError(null)
+    setNotice(null)
+    try {
+      const counts = await importAll(parseExportFile(await file.text()))
+      setNotice(importSummary(counts))
+      setRecent(await listRecentDocuments())
+    } catch (e) {
+      const reason = e instanceof ExportFileError ? e.message : `Could not import ${file.name}: ${e instanceof Error ? e.message : String(e)}`
+      setError(reason)
+    }
+  }
 
   async function remove(doc: DocumentMeta) {
     setConfirmingRemove(null)
@@ -159,6 +238,25 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
         <div className="flex items-center gap-1">
           <button
             type="button"
+            onClick={() => void pickExportFile().then(importFile)}
+            aria-label="Import library"
+            title="Import notes, highlights and reading positions from an export file"
+            className="btn-icon text-muted hover:bg-surface hover:text-text"
+          >
+            <Upload size={16} aria-hidden />
+          </button>
+          <button
+            type="button"
+            onClick={() => void exportLibrary()}
+            disabled={recent.length === 0}
+            aria-label="Export library"
+            title="Export notes, highlights and reading positions to a file (PDFs aren't included)"
+            className="btn-icon text-muted enabled:hover:bg-surface enabled:hover:text-text disabled:opacity-40"
+          >
+            <Download size={16} aria-hidden />
+          </button>
+          <button
+            type="button"
             onClick={() => void pick()}
             title="Load PDF (o)"
             className="btn text-muted hover:bg-surface hover:text-text"
@@ -171,6 +269,7 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
       </header>
 
       {error && <p className="py-2 text-danger">{error}</p>}
+      {notice && <p className="py-2 text-muted">{notice}</p>}
 
       {recent.length > 0 ? (
         <h2 className="mt-10 mb-3 px-3 text-xs font-medium tracking-wider text-muted uppercase">

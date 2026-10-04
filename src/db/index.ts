@@ -1,5 +1,6 @@
 import { openDB, type IDBPDatabase } from 'idb'
 import { slugify, slugSource } from '../slug'
+import { EXPORT_FORMAT, EXPORT_VERSION, type ExportFile } from './exportFile'
 import type { Conversation, DocumentMeta, Note, OpenGraspDB } from './schema'
 
 // The only module that talks to IndexedDB (SPEC.md §3.1). Components use these functions, never idb directly.
@@ -162,4 +163,65 @@ export async function deleteConversations(documentId: string): Promise<void> {
   const tx = (await getDB()).transaction('conversations', 'readwrite')
   const keys = await tx.store.index('documentId').getAllKeys(documentId)
   await Promise.all([...keys.map((key) => tx.store.delete(key)), tx.done])
+}
+
+/** Everything except file handles, for the export file (SPEC.md §4.6). */
+export async function exportAll(): Promise<ExportFile> {
+  const tx = (await getDB()).transaction(['documents', 'highlights', 'notes', 'conversations'])
+  const [documents, highlights, notes, conversations] = await Promise.all([
+    tx.objectStore('documents').getAll(),
+    tx.objectStore('highlights').getAll(),
+    tx.objectStore('notes').getAll(),
+    tx.objectStore('conversations').getAll(),
+  ])
+  return { format: EXPORT_FORMAT, version: EXPORT_VERSION, exportedAt: Date.now(), documents, highlights, notes, conversations }
+}
+
+/** How many records of each kind an import added or changed. */
+export type ImportCounts = Record<'documents' | 'highlights' | 'notes' | 'conversations', number>
+
+/**
+ * Merges an export into the library in one transaction (SPEC.md §4.6). Records are matched by id and the newer
+ * `updatedAt` wins; for documents that is `progress.updatedAt`, `lastOpenedAt` keeps the later of the two and
+ * the local slug is kept so links stay valid. Nothing is deleted.
+ */
+export async function importAll(data: ExportFile): Promise<ImportCounts> {
+  const tx = (await getDB()).transaction(['documents', 'highlights', 'notes', 'conversations'], 'readwrite')
+  const counts: ImportCounts = { documents: 0, highlights: 0, notes: 0, conversations: 0 }
+
+  const documents = tx.objectStore('documents')
+  for (const incoming of data.documents) {
+    const local = await documents.get(incoming.id)
+    let merged: DocumentMeta
+    if (local) {
+      const newer = incoming.progress.updatedAt > local.progress.updatedAt ? incoming : local
+      merged = {
+        ...newer,
+        slug: local.slug,
+        createdAt: Math.min(local.createdAt, incoming.createdAt),
+        lastOpenedAt: Math.max(local.lastOpenedAt, incoming.lastOpenedAt),
+      }
+      if (JSON.stringify(merged) === JSON.stringify(local)) continue
+    } else {
+      // A different local document may already use the slug.
+      let slug = incoming.slug
+      for (let n = 2; await documents.index('slug').getKey(slug); n++) slug = `${incoming.slug}-${n}`
+      merged = { ...incoming, slug }
+    }
+    await documents.put(merged)
+    counts.documents++
+  }
+
+  for (const store of ['highlights', 'notes', 'conversations'] as const) {
+    const objectStore = tx.objectStore(store)
+    for (const incoming of data[store]) {
+      const local = await objectStore.get(incoming.id)
+      if (local && local.updatedAt >= incoming.updatedAt) continue
+      await objectStore.put(incoming)
+      counts[store]++
+    }
+  }
+
+  await tx.done
+  return counts
 }
