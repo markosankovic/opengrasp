@@ -448,7 +448,7 @@ Library                              Reader
 
 - **Library:**
   - Two edges: the header (logo, Load PDF, help), the row backgrounds (hover, remove confirm) and the drop area border share the outer content edge; "Recent" and the row text are inset on a shared inner edge. Nothing reaches outside the column, so it lines up whether or not a row is highlighted.
-  - A plain list with the title, progress percentage and relative last-opened time.
+  - A plain list with the title, progress percentage and relative last-opened time. The first nine rows show their `1`–`9` key in a small key cap before the title (hidden on devices without hover); later rows keep an empty slot so titles stay aligned.
   - Dropping a PDF anywhere in the window opens it.
   - A drop area at the bottom of the page: a dashed box with a large file icon, "Drop a PDF here", and "or browse your files · PDFs never leave your device". It highlights in the accent color while a file is dragged over the window, and clicking it opens the picker.
   - Selecting a document whose file isn't available prompts for the file and shows its expected name.

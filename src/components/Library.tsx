@@ -197,9 +197,18 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
                     type="button"
                     onClick={() => void reopen(doc)}
                     title={i < 9 ? `Open ${doc.fileName} (${i + 1})` : `Open ${doc.fileName}`}
-                    className="flex min-w-0 flex-1 items-center justify-between gap-6 rounded-lg px-3 py-3.5 text-left"
+                    aria-keyshortcuts={i < 9 ? String(i + 1) : undefined}
+                    className="flex min-w-0 flex-1 items-center gap-6 rounded-lg px-3 py-3.5 text-left"
                   >
-                    <span className="min-w-0">
+                    {/* The key that opens the row; an empty slot past 9 keeps the titles aligned. Hidden without a keyboard. */}
+                    <span
+                      aria-hidden
+                      className="-mr-3 inline-flex size-5 shrink-0 items-center justify-center rounded border border-border font-mono text-[11px] text-muted data-[empty]:invisible [@media(hover:none)]:hidden"
+                      data-empty={i < 9 ? undefined : ''}
+                    >
+                      {i < 9 ? i + 1 : ''}
+                    </span>
+                    <span className="min-w-0 flex-1">
                       <span className="block truncate text-[15px] leading-snug font-medium">
                         {doc.title ?? doc.fileName}
                       </span>
