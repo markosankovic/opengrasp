@@ -1,60 +1,143 @@
-import { CircleHelp, X } from 'lucide-react'
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CircleHelp, X } from 'lucide-react'
 import { useEffect, useRef, type ReactNode } from 'react'
 import { isEditable } from '../keyboard'
 import Logo from './Logo'
 
-const LIBRARY_SHORTCUTS: [keys: string[], action: string][] = [
-  [['o'], 'Load PDF (also Ctrl+O)'],
-  [['1', '…', '9'], 'Open a document from the list'],
-  [['?'], 'This help'],
+/** Apple keyboards use ⌘ where others use Ctrl; the app accepts both everywhere. */
+const MOD = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl'
+
+interface Shortcut {
+  keys: string[]
+  action: string
+  /** Other keys that do the same, shown after the action. */
+  also?: string[]
+}
+
+const SHORTCUT_GROUPS: { title: string; rows: Shortcut[] }[] = [
+  {
+    title: 'Reading',
+    rows: [
+      { keys: ['j', 'k'], action: 'Scroll down / up', also: ['↓', '↑'] },
+      { keys: ['Space'], action: 'Scroll a screen down / up', also: ['Shift+Space'] },
+      { keys: ['n', 'p'], action: 'Next / previous page', also: ['→', '←', 'PgDn', 'PgUp'] },
+      { keys: ['Home', 'End'], action: 'First / last page' },
+      { keys: ['g'], action: 'Go to page' },
+      { keys: ['/'], action: 'Find in document', also: [`${MOD}+F`] },
+      { keys: ['Enter'], action: 'Next match while finding', also: ['Shift+Enter'] },
+    ],
+  },
+  {
+    title: 'Panels',
+    rows: [
+      { keys: ['t'], action: 'Table of contents' },
+      { keys: ['a'], action: 'Ask AI about the selection, or open the Ask panel' },
+      { keys: ['N'], action: 'Notes panel', also: ['Shift+N'] },
+      { keys: ['c'], action: 'New note on the current page' },
+      { keys: ['b'], action: 'Back to the library' },
+    ],
+  },
+  {
+    title: 'Zoom and pan',
+    rows: [
+      { keys: ['+', '-'], action: `Zoom in / out; also ${MOD} + wheel or pinch` },
+      { keys: ['0'], action: 'Fit width' },
+      { keys: ['Space'], action: 'Hold and drag to pan; or drag with the middle button or on the gray area' },
+    ],
+  },
+  {
+    title: 'Writing notes',
+    rows: [
+      { keys: [`${MOD}+B`], action: 'Bold' },
+      { keys: [`${MOD}+I`], action: 'Italic' },
+      { keys: [`${MOD}+E`], action: 'Code; a code block over several lines' },
+      { keys: [`${MOD}+K`], action: 'Link' },
+      { keys: [`${MOD}+Enter`], action: 'Save the note' },
+      { keys: ['Esc'], action: 'Cancel the edit' },
+    ],
+  },
+  {
+    title: 'Library',
+    rows: [
+      { keys: ['o'], action: 'Load PDF', also: [`${MOD}+O`] },
+      { keys: ['1', '…', '9'], action: 'Open a document from the list' },
+    ],
+  },
+  {
+    title: 'Anywhere',
+    rows: [
+      { keys: ['?'], action: 'This help' },
+      { keys: ['Esc'], action: 'Close the find bar, table of contents or this help' },
+    ],
+  },
 ]
 
-const READER_SHORTCUTS: [keys: string[], action: string][] = [
-  [['j', 'k'], 'Scroll down / up (also ↓ ↑)'],
-  [['Space'], 'Scroll a screen (Shift+Space back); hold and drag to pan'],
-  [['n', 'p'], 'Next / previous page (also → ←, PgDn PgUp)'],
-  [['Home', 'End'], 'First / last page'],
-  [['g'], 'Go to page'],
-  [['/'], 'Find in document (also Ctrl+F); Enter / Shift+Enter for next / previous'],
-  [['+', '-'], 'Zoom in / out (also Ctrl + wheel)'],
-  [['0'], 'Fit width'],
-  [['t'], 'Table of contents'],
-  [['a'], 'Ask AI about the selection, or open the Ask panel'],
-  [['b'], 'Back to the library'],
-  [['Esc'], 'Close the find bar and the table of contents'],
-  [['?'], 'This help'],
+const FEATURES: [title: string, text: ReactNode][] = [
+  ['Open a PDF', <>Drop it anywhere on the library page, or use Load PDF.</>],
+  ['Continue where you stopped', <>Page, position on the page and zoom are saved as you read, for every document.</>],
+  [
+    'Private by design',
+    <>
+      Your PDFs never leave your device. Your place, notes and conversations are kept in this browser. The file itself
+      isn't stored, so the browser may ask you to pick it again when you reopen it.
+    </>,
+  ],
+  ['Find', <>Search the whole document; every match is highlighted and Enter steps through them.</>],
+  ['Table of contents', <>The panel on the left lists the chapters and marks the one you're in.</>],
+  [
+    'Notes',
+    <>Markdown notes for a page or the whole document, in the panel on the right. An AI answer saves as a note in one click.</>,
+  ],
+  [
+    'Ask AI (optional)',
+    <>
+      Select a passage and choose Explain or Ask, or type a question. Google Gemini with your own API key, or a model
+      on your computer (Ollama, LM Studio, llama.cpp). Sent with each question: the title and section, your selection
+      and the text around it (or the whole page, if turned on) and the conversation so far.
+    </>,
+  ],
+  ['Works offline', <>Install it as an app from the browser's address bar.</>],
 ]
 
-const NOTES_SHORTCUTS: [keys: string[], action: string][] = [
-  [['N'], 'Open / close the Notes panel (Shift+N)'],
-  [['c'], 'New note on the current page'],
-  [['Ctrl+B'], 'Bold, while writing'],
-  [['Ctrl+I'], 'Italic'],
-  [['Ctrl+E'], 'Code; a code block over several lines'],
-  [['Ctrl+K'], 'Link'],
-  [['Ctrl+Enter'], 'Save the note'],
-  [['Esc'], 'Cancel the edit'],
-]
+/** Arrow glyphs are tiny in both Geist fonts, so arrow keys show icons. */
+const ARROWS: Record<string, typeof ArrowUp> = { '←': ArrowLeft, '→': ArrowRight, '↑': ArrowUp, '↓': ArrowDown }
 
-function Kbd({ children }: { children: ReactNode }) {
+function Kbd({ children, small = false }: { children: string; small?: boolean }) {
+  const Arrow = ARROWS[children]
   return (
-    <kbd className="inline-flex h-6 min-w-6 items-center justify-center rounded-md border border-border bg-surface px-1.5 font-mono text-xs text-text">
-      {children}
+    <kbd
+      className={`inline-flex items-center justify-center rounded-md border border-border bg-surface font-mono text-xs text-text ${small ? 'h-5 min-w-5 px-1' : 'h-6 min-w-6 px-1.5'}`}
+    >
+      {Arrow ? <Arrow size={12} aria-label={children} /> : children}
     </kbd>
   )
 }
 
-function Shortcuts({ title, rows }: { title: string; rows: [string[], string][] }) {
+function Heading({ children }: { children: ReactNode }) {
+  return <h3 className="mb-2 text-xs font-medium tracking-wider text-muted uppercase">{children}</h3>
+}
+
+function Shortcuts({ title, rows }: { title: string; rows: Shortcut[] }) {
   return (
-    <section>
-      <h3 className="mb-2 text-xs font-medium tracking-wider text-muted uppercase">{title}</h3>
+    <section className="mb-6 break-inside-avoid">
+      <Heading>{title}</Heading>
       <dl className="flex flex-col gap-1.5">
-        {rows.map(([keys, action]) => (
-          <div key={action} className="flex items-center gap-4">
-            <dt className="flex w-24 shrink-0 gap-1">
+        {rows.map(({ keys, action, also }) => (
+          <div key={action} className="flex items-start gap-3">
+            <dt className="flex w-24 shrink-0 flex-wrap gap-1">
               {keys.map((k) => (k === '…' ? <span key={k} className="self-center text-muted">–</span> : <Kbd key={k}>{k}</Kbd>))}
             </dt>
-            <dd className="text-muted">{action}</dd>
+            <dd className="pt-0.5 text-muted">
+              {action}
+              {also && (
+                <span className="ml-1.5 inline-flex flex-wrap gap-1 align-middle">
+                  {also.map((k) => (
+                    <Kbd key={k} small>
+                      {k}
+                    </Kbd>
+                  ))}
+                </span>
+              )}
+            </dd>
           </div>
         ))}
       </dl>
@@ -106,7 +189,7 @@ export default function HelpButton({
         aria-labelledby="help-title"
         // A click on the backdrop lands on the dialog element itself.
         onClick={(e) => e.target === e.currentTarget && e.currentTarget.close()}
-        className="m-auto max-h-[85dvh] w-[min(36rem,calc(100vw-2rem))] overflow-y-auto overscroll-contain rounded-2xl [scrollbar-width:thin] border border-border bg-bg p-0 text-text shadow-2xl backdrop:bg-black/40"
+        className="m-auto max-h-[85dvh] w-[min(56rem,calc(100vw-2rem))] overflow-y-auto overscroll-contain rounded-2xl [scrollbar-width:thin] border border-border bg-bg p-0 text-text shadow-2xl backdrop:bg-black/40"
       >
         <div ref={content} tabIndex={-1} className="flex flex-col gap-6 p-6 text-sm leading-relaxed outline-none">
           <header className="flex items-center justify-between">
@@ -124,56 +207,27 @@ export default function HelpButton({
             </button>
           </header>
 
-          <p>
+          <p className="text-base">
             A PDF reader for deep technical study: books, standards, papers and documentation you read over many
             sessions. It remembers exactly where you left off in every document.
           </p>
 
           <section>
-            <h3 className="mb-2 text-xs font-medium tracking-wider text-muted uppercase">How it works</h3>
-            <ul className="flex list-disc flex-col gap-1.5 pl-5 marker:text-muted">
-              <li>
-                <span className="font-medium">Open a PDF</span> by dropping it anywhere on the library page, or with{' '}
-                <span className="font-medium">Load PDF</span>.
-              </li>
-              <li>
-                <span className="font-medium">Your place is saved automatically</span>: page, position on the page and
-                zoom. Open the document again and you continue where you stopped.
-              </li>
-              <li>
-                <span className="font-medium">Your PDFs never leave your device.</span> Only the reading position is
-                stored, in this browser. Because the file itself isn't stored, the browser may ask you to pick it again
-                when you reopen it.
-              </li>
-              <li>
-                <span className="font-medium">Pan a zoomed-in page</span> by holding Space and dragging, dragging with
-                the middle mouse button, or dragging the gray area around the pages.
-              </li>
-              <li>
-                <span className="font-medium">Table of contents</span>: the panel on the left lists the document's
-                chapters and marks the one you're in.
-              </li>
-              <li>
-                <span className="font-medium">Ask AI</span> (optional): select a term or passage and choose Explain or
-                Ask, or type a question in the panel on the right. It uses Google Gemini with your own API key, or a
-                model on your own computer (Ollama, LM Studio, llama.cpp); only your question, the selection and the
-                current page are sent. Conversations are saved per document in this browser.
-              </li>
-              <li>
-                <span className="font-medium">Notes</span>: write Markdown notes for a page or the whole document in the
-                Notes tab next to Ask (N; c starts a note), or save an AI answer as a note with one click.
-              </li>
-              <li>
-                <span className="font-medium">Works offline</span> and can be installed as an app from the browser's
-                address bar.
-              </li>
-            </ul>
+            <Heading>How it works</Heading>
+            <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
+              {FEATURES.map(([title, text]) => (
+                <div key={title}>
+                  <dt className="font-medium">{title}</dt>
+                  <dd className="text-muted">{text}</dd>
+                </div>
+              ))}
+            </dl>
           </section>
 
-          <div className="flex flex-col gap-6">
-            <Shortcuts title="Library" rows={LIBRARY_SHORTCUTS} />
-            <Shortcuts title="Reader" rows={READER_SHORTCUTS} />
-            <Shortcuts title="Notes" rows={NOTES_SHORTCUTS} />
+          <div className="-mb-2 gap-8 sm:columns-2">
+            {SHORTCUT_GROUPS.map((group) => (
+              <Shortcuts key={group.title} {...group} />
+            ))}
           </div>
 
           <footer className="border-t border-border pt-4 text-xs text-muted">
