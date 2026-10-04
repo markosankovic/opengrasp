@@ -19,11 +19,20 @@ const READER_SHORTCUTS: [keys: string[], action: string][] = [
   [['0'], 'Fit width'],
   [['t'], 'Table of contents'],
   [['a'], 'Ask AI about the selection, or open the Ask panel'],
-  [['N'], 'Notes (Shift+N)'],
-  [['c'], 'New note on the current page'],
   [['b'], 'Back to the library'],
   [['Esc'], 'Close the table of contents'],
   [['?'], 'This help'],
+]
+
+const NOTES_SHORTCUTS: [keys: string[], action: string][] = [
+  [['N'], 'Open / close the Notes panel (Shift+N)'],
+  [['c'], 'New note on the current page'],
+  [['Ctrl+B'], 'Bold, while writing'],
+  [['Ctrl+I'], 'Italic'],
+  [['Ctrl+E'], 'Code; a code block over several lines'],
+  [['Ctrl+K'], 'Link'],
+  [['Ctrl+Enter'], 'Save the note'],
+  [['Esc'], 'Cancel the edit'],
 ]
 
 function Kbd({ children }: { children: ReactNode }) {
@@ -151,7 +160,7 @@ export default function HelpButton({
               </li>
               <li>
                 <span className="font-medium">Notes</span>: write Markdown notes for a page or the whole document in the
-                Notes tab next to Ask (m), or save an AI answer as a note with one click.
+                Notes tab next to Ask (N; c starts a note), or save an AI answer as a note with one click.
               </li>
               <li>
                 <span className="font-medium">Works offline</span> and can be installed as an app from the browser's
@@ -163,6 +172,7 @@ export default function HelpButton({
           <div className="flex flex-col gap-6">
             <Shortcuts title="Library" rows={LIBRARY_SHORTCUTS} />
             <Shortcuts title="Reader" rows={READER_SHORTCUTS} />
+            <Shortcuts title="Notes" rows={NOTES_SHORTCUTS} />
           </div>
 
           <footer className="border-t border-border pt-4 text-xs text-muted">
