@@ -277,6 +277,15 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
           >
             GitHub
           </a>
+          <span aria-hidden>·</span>
+          <a
+            href="https://ko-fi.com/markosankovic"
+            target="_blank"
+            rel="noreferrer"
+            className="hover:text-text hover:underline"
+          >
+            Support on Ko-fi
+          </a>
         </footer>
       </div>
     </div>

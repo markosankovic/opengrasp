@@ -40,6 +40,10 @@ Highlights, find in document and export/import are planned for v1 (see [SPEC.md]
 | `Esc` | Close the table of contents or help |
 | `?` | Help |
 
+## Support
+
+OpenGrasp is free and has no ads or tracking. If it helps you, you can [buy me a coffee on Ko-fi](https://ko-fi.com/markosankovic); it pays for running costs such as a proper domain.
+
 ## Development
 
 Requires Node.js 22.13 or newer (see `.nvmrc`).

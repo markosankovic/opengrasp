@@ -173,6 +173,15 @@ export default function HelpButton({
               className="hover:text-text hover:underline"
             >
               Source and issues on GitHub
+            </a>{' '}
+            ·{' '}
+            <a
+              href="https://ko-fi.com/markosankovic"
+              target="_blank"
+              rel="noreferrer"
+              className="hover:text-text hover:underline"
+            >
+              Support on Ko-fi
             </a>
           </footer>
         </div>
