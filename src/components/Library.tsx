@@ -1,4 +1,4 @@
-import { FileUp, Trash2 } from 'lucide-react'
+import { ChevronDown, FileUp, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { listRecentDocuments, removeDocument } from '../db'
 import type { DocumentMeta } from '../db/schema'
@@ -28,6 +28,9 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
   const [error, setError] = useState<string | null>(null)
   const [confirmingRemove, setConfirmingRemove] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
+  const [hiddenBelow, setHiddenBelow] = useState(0)
+  const listRef = useRef<HTMLUListElement>(null)
+  const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     listRecentDocuments()
@@ -96,6 +99,22 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
     setRecent((docs) => docs.filter((d) => d.id !== doc.id))
   }
 
+  // How many rows are (partly) hidden under the pinned drop area, for the "N more" pill above it.
+  useEffect(() => {
+    const update = () => {
+      const edge = bottomRef.current?.getBoundingClientRect().top ?? Infinity
+      const rows = Array.from(listRef.current?.children ?? [])
+      setHiddenBelow(rows.filter((row) => row.getBoundingClientRect().bottom > edge + 1).length)
+    }
+    update()
+    window.addEventListener('scroll', update, { passive: true })
+    window.addEventListener('resize', update)
+    return () => {
+      window.removeEventListener('scroll', update)
+      window.removeEventListener('resize', update)
+    }
+  }, [recent])
+
   // Dropping a PDF anywhere in the window opens it (SPEC.md §5.2).
   // The drop area lights up while a file is dragged over the window (enter/leave fire per child, hence the depth count).
   const dragDepth = useRef(0)
@@ -132,7 +151,8 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-5xl flex-col px-6">
-      <header className="flex h-16 items-center justify-between">
+      {/* The header and the drop area stay in place while the list scrolls, on screens tall enough to spare the room. */}
+      <header className="top-0 z-10 flex h-16 items-center justify-between bg-bg [@media(min-height:800px)]:sticky">
         <h1 aria-label="OpenGrasp">
           <Logo />
         </h1>
@@ -153,11 +173,13 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
       {error && <p className="py-2 text-danger">{error}</p>}
 
       {recent.length > 0 ? (
-        <h2 className="mt-10 mb-3 px-3 text-xs font-medium tracking-wider text-muted uppercase">Recent</h2>
+        <h2 className="mt-10 mb-3 px-3 text-xs font-medium tracking-wider text-muted uppercase">
+          Recent <span className="ml-1 font-normal tabular-nums">{recent.length}</span>
+        </h2>
       ) : null}
 
       {recent.length > 0 ? (
-        <ul className="flex flex-col gap-1">
+        <ul ref={listRef} className="flex flex-col gap-1">
           {recent.map((doc, i) => (
             <li key={doc.id} className="group flex items-center gap-2 rounded-lg hover:bg-surface">
               {confirmingRemove === doc.id ? (
@@ -238,18 +260,40 @@ export default function Library({ onOpened }: { onOpened: (opened: OpenedPdf) =>
       ) : null}
 
       {/* Sits at the bottom of the page; mt-auto pushes it down below the list. */}
-      <div className="mt-auto pt-12 pb-10">
+      {/* Pinned, it draws a divider with an "N more" pill while rows are hidden beneath it. */}
+      <div
+        ref={bottomRef}
+        className={`bottom-0 z-10 mt-auto border-t bg-bg pt-8 pb-6 [@media(min-height:800px)]:sticky ${
+          hiddenBelow > 0 ? 'border-transparent [@media(min-height:800px)]:border-border' : 'border-transparent'
+        }`}
+      >
+        {hiddenBelow > 0 ? (
+          <>
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 bottom-full hidden h-12 bg-linear-to-t from-bg to-transparent [@media(min-height:800px)]:block"
+            />
+            <button
+              type="button"
+              onClick={() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' })}
+              className="absolute top-0 left-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center gap-1 rounded-full border border-border bg-bg py-1 pr-3 pl-2 text-xs font-medium text-muted hover:bg-surface hover:text-text [@media(min-height:800px)]:flex"
+            >
+              <ChevronDown size={14} aria-hidden />
+              <span>{hiddenBelow} more</span>
+            </button>
+          </>
+        ) : null}
         <button
           type="button"
           onClick={() => void pick()}
-          className={`group/drop flex w-full flex-col items-center gap-3 rounded-2xl border-2 border-dashed px-6 py-10 transition-colors ${
+          className={`group/drop flex w-full flex-col items-center gap-3 rounded-2xl border-2 border-dashed px-6 py-10 transition-colors [@media(max-height:799px)]:gap-2 [@media(max-height:799px)]:py-5 ${
             dragging ? 'border-accent bg-accent/5' : 'border-border hover:border-muted/50 hover:bg-surface/60'
           }`}
         >
           <span
-            className={`rounded-2xl p-4 transition-colors ${dragging ? 'bg-accent/15 text-accent' : 'bg-surface text-muted group-hover/drop:text-text'}`}
+            className={`rounded-2xl p-4 transition-colors [@media(max-height:799px)]:p-2.5 ${dragging ? 'bg-accent/15 text-accent' : 'bg-surface text-muted group-hover/drop:text-text'}`}
           >
-            <FileUp size={32} strokeWidth={1.5} aria-hidden />
+            <FileUp size={32} strokeWidth={1.5} aria-hidden className="[@media(max-height:799px)]:size-6" />
           </span>
           <span className="text-[15px] font-medium">{dragging ? 'Drop to open' : 'Drop a PDF here'}</span>
           <span className="text-xs text-muted">
