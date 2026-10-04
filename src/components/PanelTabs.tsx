@@ -2,7 +2,7 @@ export type SidePanel = 'ask' | 'notes'
 
 const TABS: [SidePanel, string, string][] = [
   ['ask', 'Ask', 'Ask AI (a)'],
-  ['notes', 'Notes', 'Notes (m)'],
+  ['notes', 'Notes', 'Notes (N)'],
 ]
 
 /** The tabs of the right-hand panel, shown in place of each panel's title (SPEC.md §5.2). */

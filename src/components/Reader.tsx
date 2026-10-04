@@ -84,6 +84,7 @@ export default function Reader({ opened, onClose, onProgressSaved }: Props) {
   const [askRequest, setAskRequest] = useState<AskRequest | null>(null)
   const askId = useRef(0)
   const [notesSignal, setNotesSignal] = useState<NotesSignal>({ revision: 0 })
+  const [newNoteRequest, setNewNoteRequest] = useState(0)
 
   useEffect(() => writeValue(SIDE_PANEL_KEY, side ?? ''), [side])
   if (side && !mounted[side]) setMounted({ ...mounted, [side]: true })
@@ -217,7 +218,11 @@ export default function Reader({ opened, onClose, onProgressSaved }: Props) {
             document.getSelection()?.removeAllRanges()
           } else toggleSide('ask')
         }
-        actions.m = () => toggleSide('notes')
+        actions.N = () => toggleSide('notes')
+        actions.c = () => {
+          setSide('notes')
+          setNewNoteRequest((n) => n + 1)
+        }
         actions.Escape = () => setOutlineOpen(false)
         actions.b = () => {
           flush()
@@ -311,7 +316,7 @@ export default function Reader({ opened, onClose, onProgressSaved }: Props) {
               onClick={() => toggleSide('notes')}
               aria-label="Notes"
               aria-pressed={side === 'notes'}
-              title="Notes (m)"
+              title="Notes (N)"
               className={`${button} ${side === 'notes' ? 'bg-surface text-text' : ''}`}
             >
               <NotebookPen size={16} aria-hidden />
@@ -365,6 +370,7 @@ export default function Reader({ opened, onClose, onProgressSaved }: Props) {
                   currentPage={currentPage}
                   tabs={<PanelTabs active="notes" onSelect={setSide} />}
                   signal={notesSignal}
+                  newNoteRequest={newNoteRequest}
                   onGoToPage={(page) => {
                     viewer.current?.goToPage(page)
                     if (matchMedia(NARROW).matches) setSide(null)

@@ -460,11 +460,11 @@ Library                              Reader
   - On the left, toggled from the top bar or with `t`, closed by default; its open/closed state is remembered on wide windows.
   - Entries show their page number; the entry the reader is in is highlighted (its nearest visible parent when collapsed), and its parents are expanded when the panel opens.
   - On narrow windows it overlays the page, and choosing an entry or tapping outside closes it.
-- **Right-hand panel: Ask and Notes.** One panel with two tabs in its header; the reader-bar toggles and `a` / `m` open it on their tab, or close it when that tab is showing. Closed by default; the open tab is remembered on wide windows (`opengrasp:side-panel`). On narrow windows it overlays the page instead of shrinking it. Each tab stays mounted once opened, so a conversation or a note being written survives switching tabs. Resizing comes later.
+- **Right-hand panel: Ask and Notes.** One panel with two tabs in its header; the reader-bar toggles and `a` / `N` open it on their tab, or close it when that tab is showing. Closed by default; the open tab is remembered on wide windows (`opengrasp:side-panel`). On narrow windows it overlays the page instead of shrinking it. Each tab stays mounted once opened, so a conversation or a note being written survives switching tabs. Resizing comes later.
 - **Notes tab** (`src/components/NotesPanel.tsx`):
   - Grouped: "Whole document" first, then by page, oldest first within a page; a page heading jumps to that page.
   - Notes show rendered with the answer Markdown renderer (links work). Clicking a note, or its pencil, edits it in a Geist Mono textarea; `Ctrl+Enter` or clicking elsewhere saves, `Esc` cancels. Emptying a note deletes it; an empty new note is discarded.
-  - **+** starts a note on the current page; a chip in the editor switches it between "Page n" and "Whole document".
+  - **+** (or `c` anywhere in the reader) starts a note on the current page. Only one new note is written at a time: while one is open, `+` and `c` focus it instead of starting another. A chip in the editor switches it between "Page n" and "Whole document".
   - Delete (trash, on hover or focus, always on devices without hover) asks inline. Notes saved from Ask show "from Ask · model".
 - **Selection popover:** a small floating bar above selected text with the highlight colors, a note button and a copy button and *Explain* / *Ask* for AI (§4.9).
 - **No sidebars by default.** Page thumbnails and the outline (table of contents) are one shortcut away, not shown permanently.
@@ -529,7 +529,7 @@ All colors are CSS custom properties defined once in Tailwind v4's `@theme`. Com
   - ISC license
 - **Rules:**
   - Icons are 16 px, colored `--color-muted` at rest and `--color-text` on hover or when active.
-  - Icon-only buttons need an `aria-label` and a tooltip that shows the shortcut (e.g. "Notes (m)").
+  - Icon-only buttons need an `aria-label` and a tooltip that shows the shortcut (e.g. "Notes (N)").
 - **Buttons:**
   - Text buttons, with or without an icon, use the `btn` utility (`src/index.css`): 32 px high, 12 px side padding, an 8 px gap to the icon, `rounded-lg`, weight 500. Icon-only buttons in the same row use `btn-icon`, a 32 px square. The reader bar's compact 40 px row keeps its smaller icon buttons.
   - The label goes in a `<span>`, which `btn` trims to cap height and baseline (`text-box: trim-both cap alphabetic`). Geist has more room above its capitals than below the baseline, so an untrimmed label sits about 1 px high. Trimmed, labels are centered within half a pixel, measured at 1× and 2× pixel density. No per-button nudges.
@@ -571,7 +571,8 @@ All colors are CSS custom properties defined once in Tailwind v4's `@theme`. Com
 | `h` | Highlight the selection |
 | `t` | Toggle table of contents |
 | `a` | Ask AI about the selection, or open / close the Ask panel |
-| `m` | Toggle the Notes tab of the right-hand panel |
+| `N` (`Shift+N`) | Toggle the Notes tab of the right-hand panel |
+| `c` | New note on the current page (opens the Notes tab; focuses the new note already being written instead of starting another) |
 | `/` | Search (document; later notes) |
 | `Esc` | Close popover or panel; show the top bar |
 | `?` | Help: what the app does, how to use it, and the shortcuts (also the `?` button right of Load PDF in the library header, and at the right end of the reader bar) |

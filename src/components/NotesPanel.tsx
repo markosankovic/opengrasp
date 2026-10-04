@@ -16,6 +16,8 @@ interface Props {
   /** The panel tabs, shown in place of a title. */
   tabs: ReactNode
   signal: NotesSignal
+  /** Bumped to start a new note on the current page (the `c` shortcut). */
+  newNoteRequest: number
   onGoToPage: (page: number) => void
   onClose: () => void
   /** Hands keyboard focus back to the page, e.g. after Esc in the editor. */
@@ -30,7 +32,16 @@ interface Draft {
 }
 
 /** Right-hand panel with the document's notes (SPEC.md F6): Markdown text, per page or for the whole document. */
-export default function NotesPanel({ documentId, currentPage, tabs, signal, onGoToPage, onClose, onDone }: Props) {
+export default function NotesPanel({
+  documentId,
+  currentPage,
+  tabs,
+  signal,
+  newNoteRequest,
+  onGoToPage,
+  onClose,
+  onDone,
+}: Props) {
   const [notes, setNotes] = useState<Note[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [draft, setDraft] = useState<Draft | null>(null)
@@ -75,6 +86,23 @@ export default function NotesPanel({ documentId, currentPage, tabs, signal, onGo
     setNotes(await listNotes(documentId))
   }
 
+  /** Starts a note on the current page; a new note already being written is focused instead of replaced. */
+  function startNew() {
+    if (draft && !draft.id) {
+      list.current?.querySelector<HTMLTextAreaElement>('[data-new-note] textarea')?.focus()
+      return
+    }
+    if (draft) void save(draft)
+    setDraft({ pageNumber: currentPage, content: '' })
+  }
+
+  // The request is also current when the panel mounts on it, so a first `c` opens the panel with the editor.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- startNew() may save the note being edited and focus the editor
+    if (newNoteRequest) startNew()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only a new request starts a note
+  }, [newNoteRequest])
+
   function edit(note: Note) {
     setDraft({ id: note.id, pageNumber: note.pageNumber, content: note.content })
   }
@@ -102,14 +130,14 @@ export default function NotesPanel({ documentId, currentPage, tabs, signal, onGo
         <div className="min-w-0 flex-1">{tabs}</div>
         <button
           type="button"
-          onClick={() => setDraft({ pageNumber: currentPage, content: '' })}
+          onClick={startNew}
           aria-label="New note"
-          title="New note on this page"
+          title="New note on this page (c)"
           className={iconButton}
         >
           <Plus size={15} aria-hidden />
         </button>
-        <button type="button" onClick={onClose} aria-label="Close" title="Close (m)" className={iconButton}>
+        <button type="button" onClick={onClose} aria-label="Close" title="Close (N)" className={iconButton}>
           <X size={15} aria-hidden />
         </button>
       </header>
@@ -123,7 +151,7 @@ export default function NotesPanel({ documentId, currentPage, tabs, signal, onGo
           </div>
         )}
         {newDraft && (
-          <div className="mb-6">
+          <div data-new-note className="mb-6">
             <NoteEditor draft={newDraft} currentPage={currentPage} onChange={setDraft} onSave={save} onCancel={() => setDraft(null)} onDone={onDone} />
           </div>
         )}
